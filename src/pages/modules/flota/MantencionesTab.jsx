@@ -1,9 +1,16 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { getVehiculos } from '../../../lib/flotaStore';
 
 export default function MantencionesTab() {
-  const vehiculos = useMemo(() => getVehiculos(), []);
+  const [vehiculos, setVehiculos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getVehiculos().then(setVehiculos).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="text-sm text-slate-400">Cargando...</p>;
 
   const ordenados = [...vehiculos]
     .filter((v) => v.estado !== 'Fuera de servicio')

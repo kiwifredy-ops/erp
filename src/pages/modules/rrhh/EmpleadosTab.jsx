@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { getEmpleados, DEPARTAMENTOS, ESTADOS_EMPLEADO } from '../../../lib/rrhhStore';
 import EmpleadoModal from './EmpleadoModal';
@@ -12,14 +12,26 @@ const ESTADO_STYLES = {
 };
 
 export default function EmpleadosTab() {
-  const [version, setVersion] = useState(0);
+  const [empleados, setEmpleados] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [departamento, setDepartamento] = useState('');
   const [estado, setEstado] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
-  const empleados = useMemo(() => getEmpleados(), [version]);
+  async function refresh() {
+    setLoading(true);
+    try {
+      setEmpleados(await getEmpleados());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
 
   const filtered = useMemo(() => {
     return empleados.filter((e) => {
@@ -34,9 +46,7 @@ export default function EmpleadosTab() {
     });
   }, [empleados, query, departamento, estado]);
 
-  function refresh() {
-    setVersion((v) => v + 1);
-  }
+  const selected = empleados.find((e) => e.id === selectedId) ?? null;
 
   return (
     <div className="space-y-4">
@@ -105,7 +115,7 @@ export default function EmpleadosTab() {
                 <td className="px-4 py-2.5 text-slate-600">{e.cargo}</td>
                 <td className="px-4 py-2.5 text-slate-600">{e.departamento}</td>
                 <td className="px-4 py-2.5 text-slate-600">{e.tipoContrato}</td>
-                <td className="px-4 py-2.5 text-slate-600">{e.fechaIngreso}</td>
+                <td className="px-4 py-2.5 text-slate-600">{new Date(e.fechaIngreso).toISOString().slice(0, 10)}</td>
                 <td className="px-4 py-2.5">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ESTADO_STYLES[e.estado] ?? ''}`}>
                     {e.estado}
@@ -113,10 +123,17 @@ export default function EmpleadosTab() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-slate-400 text-sm">
                   No hay empleados que coincidan con el filtro.
+                </td>
+              </tr>
+            )}
+            {loading && (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-slate-400 text-sm">
+                  Cargando...
                 </td>
               </tr>
             )}
@@ -134,9 +151,9 @@ export default function EmpleadosTab() {
         />
       )}
 
-      {selectedId && (
+      {selected && (
         <EmpleadoDrawer
-          empleadoId={selectedId}
+          empleado={selected}
           onClose={() => setSelectedId(null)}
           onChanged={refresh}
         />

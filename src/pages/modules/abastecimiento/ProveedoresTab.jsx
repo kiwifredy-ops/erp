@@ -1,14 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, X, Building2 } from 'lucide-react';
 import { getProveedores, crearProveedor, toggleProveedorActivo, RUBROS_PROVEEDOR } from '../../../lib/abastecimientoStore';
 
 export default function ProveedoresTab() {
-  const [version, setVersion] = useState(0);
+  const [proveedores, setProveedores] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
-  const proveedores = useMemo(() => getProveedores(), [version]);
 
-  function refresh() {
-    setVersion((v) => v + 1);
+  async function refresh() {
+    setProveedores(await getProveedores());
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  async function handleToggle(id) {
+    await toggleProveedorActivo(id);
+    refresh();
   }
 
   return (
@@ -42,7 +50,7 @@ export default function ProveedoresTab() {
                   </span>
                 </td>
                 <td className="px-4 py-2.5">
-                  <button onClick={() => { toggleProveedorActivo(p.id); refresh(); }} className="text-xs font-medium text-sky-700 hover:underline">
+                  <button onClick={() => handleToggle(p.id)} className="text-xs font-medium text-sky-700 hover:underline">
                     {p.activo ? 'Desactivar' : 'Reactivar'}
                   </button>
                 </td>
@@ -61,8 +69,23 @@ export default function ProveedoresTab() {
 
 function CreateProveedorModal({ onClose, onCreated }) {
   const [form, setForm] = useState({ nombre: '', rubro: RUBROS_PROVEEDOR[0], contacto: '', telefono: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
-  function handleSubmit(e) { e.preventDefault(); crearProveedor(form); onCreated(); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await crearProveedor(form);
+      onCreated();
+    } catch (err) {
+      setError(err.message || 'No se pudo registrar el proveedor.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
@@ -90,9 +113,10 @@ function CreateProveedorModal({ onClose, onCreated }) {
             <span className="block text-xs font-medium text-slate-600 mb-1">Teléfono</span>
             <input value={form.telefono} onChange={(e) => set('telefono', e.target.value)} className="input" />
           </label>
+          {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100">Cancelar</button>
-            <button type="submit" className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 text-white font-medium">Registrar proveedor</button>
+            <button type="submit" disabled={saving} className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">{saving ? 'Guardando...' : 'Registrar proveedor'}</button>
           </div>
         </form>
       </div>

@@ -1,8 +1,17 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { resumenPorEmpleado } from '../../../lib/asistenciaStore';
 
 export default function ResumenTab() {
-  const resumen = useMemo(() => resumenPorEmpleado(), []);
+  const [resumen, setResumen] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    resumenPorEmpleado()
+      .then(setResumen)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="text-sm text-slate-400">Cargando...</p>;
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">

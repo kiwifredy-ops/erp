@@ -1,10 +1,16 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock } from 'lucide-react';
 import { MODULES, IMPLEMENTED_MODULES } from '../lib/modules';
 import { getEmpleados } from '../lib/rrhhStore';
 
 export default function Dashboard() {
-  const empleados = getEmpleados();
+  const [empleados, setEmpleados] = useState([]);
+
+  useEffect(() => {
+    getEmpleados().then(setEmpleados);
+  }, []);
+
   const activos = empleados.filter((e) => e.estado === 'Activo').length;
 
   const stats = [

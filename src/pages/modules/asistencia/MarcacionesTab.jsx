@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { getMarcaciones, registrarMarcacion } from '../../../lib/asistenciaStore';
 import { getEmpleados } from '../../../lib/rrhhStore';
@@ -10,31 +10,37 @@ const ESTADO_STYLES = {
 };
 
 export default function MarcacionesTab() {
-  const [version, setVersion] = useState(0);
+  const [marcaciones, setMarcaciones] = useState([]);
+  const [empleadosActivos, setEmpleadosActivos] = useState([]);
   const [empleado, setEmpleado] = useState('');
   const [fecha, setFecha] = useState('');
   const [showCreate, setShowCreate] = useState(false);
 
-  const marcaciones = useMemo(() => getMarcaciones(), [version]);
-  const empleados = useMemo(() => [...new Set(marcaciones.map((m) => m.empleado))].sort(), [marcaciones]);
-  const fechas = useMemo(() => [...new Set(marcaciones.map((m) => m.fecha))].sort().reverse(), [marcaciones]);
+  async function refresh() {
+    setMarcaciones(await getMarcaciones());
+  }
+
+  useEffect(() => {
+    refresh();
+    getEmpleados().then((emps) => setEmpleadosActivos(emps.filter((e) => e.estado === 'Activo')));
+  }, []);
+
+  const empleadosList = [...new Set(marcaciones.map((m) => m.empleado))].sort();
+  const fechas = [...new Set(marcaciones.map((m) => new Date(m.fecha).toISOString().slice(0, 10)))].sort().reverse();
 
   const filtered = marcaciones.filter((m) => {
+    const fechaStr = new Date(m.fecha).toISOString().slice(0, 10);
     const matchesEmpleado = !empleado || m.empleado === empleado;
-    const matchesFecha = !fecha || m.fecha === fecha;
+    const matchesFecha = !fecha || fechaStr === fecha;
     return matchesEmpleado && matchesFecha;
   });
-
-  function refresh() {
-    setVersion((v) => v + 1);
-  }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <select value={empleado} onChange={(e) => setEmpleado(e.target.value)} className="text-sm border border-slate-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
           <option value="">Todos los empleados</option>
-          {empleados.map((e) => <option key={e} value={e}>{e}</option>)}
+          {empleadosList.map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
         <select value={fecha} onChange={(e) => setFecha(e.target.value)} className="text-sm border border-slate-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
           <option value="">Todas las fechas</option>
@@ -62,7 +68,7 @@ export default function MarcacionesTab() {
             {filtered.map((m) => (
               <tr key={m.id} className="hover:bg-slate-50">
                 <td className="px-4 py-2.5 font-medium text-slate-800">{m.empleado}</td>
-                <td className="px-4 py-2.5 text-slate-600">{m.fecha}</td>
+                <td className="px-4 py-2.5 text-slate-600">{new Date(m.fecha).toISOString().slice(0, 10)}</td>
                 <td className="px-4 py-2.5 text-slate-600">{m.horaEntrada ?? '—'}</td>
                 <td className="px-4 py-2.5 text-slate-600">{m.horaSalida ?? '—'}</td>
                 <td className="px-4 py-2.5 text-slate-600">{m.horasTrabajadas || '—'}</td>
@@ -79,22 +85,31 @@ export default function MarcacionesTab() {
       </div>
 
       {showCreate && (
-        <RegistrarMarcacionModal onClose={() => setShowCreate(false)} onCreated={() => { refresh(); setShowCreate(false); }} />
+        <RegistrarMarcacionModal empleadosActivos={empleadosActivos} onClose={() => setShowCreate(false)} onCreated={() => { refresh(); setShowCreate(false); }} />
       )}
     </div>
   );
 }
 
-function RegistrarMarcacionModal({ onClose, onCreated }) {
-  const empleadosActivos = useMemo(() => getEmpleados().filter((e) => e.estado === 'Activo'), []);
+function RegistrarMarcacionModal({ empleadosActivos, onClose, onCreated }) {
   const [empleado, setEmpleado] = useState(empleadosActivos[0]?.nombre ?? '');
   const [hora, setHora] = useState(new Date().toTimeString().slice(0, 5));
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!empleado || !hora) return;
-    registrarMarcacion(empleado, new Date().toISOString().slice(0, 10), hora);
-    onCreated();
+    setError('');
+    setSaving(true);
+    try {
+      await registrarMarcacion(empleado, new Date().toISOString().slice(0, 10), hora);
+      onCreated();
+    } catch (err) {
+      setError(err.message || 'No se pudo registrar la marcación.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -116,9 +131,10 @@ function RegistrarMarcacionModal({ onClose, onCreated }) {
             <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="input" />
           </label>
           <p className="text-xs text-slate-400">Jornada de referencia: 08:30. Marcaciones posteriores se registran como atraso.</p>
+          {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100">Cancelar</button>
-            <button type="submit" className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 text-white font-medium">Registrar</button>
+            <button type="submit" disabled={saving} className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">{saving ? 'Guardando...' : 'Registrar'}</button>
           </div>
         </form>
       </div>

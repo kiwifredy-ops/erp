@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, X, History, Car } from 'lucide-react';
 import { getVehiculos, crearVehiculo, asignarVehiculo, cambiarEstadoVehiculo, registrarMantencion, getNextEstados, TIPOS_VEHICULO, ESTADOS_VEHICULO } from '../../../lib/flotaStore';
 import { getEmpleados } from '../../../lib/rrhhStore';
@@ -11,18 +11,23 @@ const ESTADO_STYLES = {
 };
 
 export default function VehiculosTab() {
-  const [version, setVersion] = useState(0);
+  const [vehiculos, setVehiculos] = useState([]);
+  const [tecnicos, setTecnicos] = useState([]);
   const [estado, setEstado] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
-  const vehiculos = useMemo(() => getVehiculos(), [version]);
-  const filtered = vehiculos.filter((v) => !estado || v.estado === estado);
-  const selected = vehiculos.find((v) => v.id === selectedId);
-
-  function refresh() {
-    setVersion((v) => v + 1);
+  async function refresh() {
+    setVehiculos(await getVehiculos());
   }
+
+  useEffect(() => {
+    refresh();
+    getEmpleados().then((emps) => setTecnicos(emps.filter((e) => e.estado === 'Activo' && e.departamento === 'Operaciones / Técnica')));
+  }, []);
+
+  const filtered = vehiculos.filter((v) => !estado || v.estado === estado);
+  const selected = vehiculos.find((v) => v.id === selectedId) ?? null;
 
   return (
     <div className="space-y-4">
@@ -72,7 +77,7 @@ export default function VehiculosTab() {
       )}
 
       {selected && (
-        <VehiculoDrawer vehiculo={selected} onClose={() => setSelectedId(null)} onChanged={refresh} />
+        <VehiculoDrawer vehiculo={selected} tecnicos={tecnicos} onClose={() => setSelectedId(null)} onChanged={refresh} />
       )}
     </div>
   );
@@ -80,8 +85,23 @@ export default function VehiculosTab() {
 
 function CreateVehiculoModal({ onClose, onCreated }) {
   const [form, setForm] = useState({ patente: '', marca: '', modelo: '', anio: new Date().getFullYear(), tipo: TIPOS_VEHICULO[0], kilometraje: 0, proximaMantencionKm: 10000 });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
-  function handleSubmit(e) { e.preventDefault(); crearVehiculo(form); onCreated(); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await crearVehiculo(form);
+      onCreated();
+    } catch (err) {
+      setError(err.message || 'No se pudo registrar el vehículo.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
@@ -119,9 +139,10 @@ function CreateVehiculoModal({ onClose, onCreated }) {
               <input type="number" min="0" value={form.kilometraje} onChange={(e) => set('kilometraje', e.target.value)} className="input" />
             </label>
           </div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100">Cancelar</button>
-            <button type="submit" className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 text-white font-medium">Registrar vehículo</button>
+            <button type="submit" disabled={saving} className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">{saving ? 'Guardando...' : 'Registrar vehículo'}</button>
           </div>
         </form>
       </div>
@@ -129,38 +150,63 @@ function CreateVehiculoModal({ onClose, onCreated }) {
   );
 }
 
-function VehiculoDrawer({ vehiculo, onClose, onChanged }) {
-  const tecnicos = useMemo(() => getEmpleados().filter((e) => e.estado === 'Activo' && e.departamento === 'Operaciones / Técnica'), []);
+function VehiculoDrawer({ vehiculo, tecnicos, onClose, onChanged }) {
   const [tecnicoElegido, setTecnicoElegido] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState('');
   const [motivo, setMotivo] = useState('');
   const [km, setKm] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const nextEstados = getNextEstados(vehiculo.estado);
 
-  function handleAsignar(e) {
+  async function handleAsignar(e) {
     e.preventDefault();
     if (!tecnicoElegido) return;
-    asignarVehiculo(vehiculo.id, tecnicoElegido);
-    setTecnicoElegido('');
-    onChanged();
+    setError('');
+    setSaving(true);
+    try {
+      await asignarVehiculo(vehiculo.id, tecnicoElegido);
+      setTecnicoElegido('');
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo asignar el vehículo.');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleEstado(e) {
+  async function handleEstado(e) {
     e.preventDefault();
     if (!nuevoEstado) return;
-    cambiarEstadoVehiculo(vehiculo.id, nuevoEstado, motivo);
-    setNuevoEstado('');
-    setMotivo('');
-    onChanged();
+    setError('');
+    setSaving(true);
+    try {
+      await cambiarEstadoVehiculo(vehiculo.id, nuevoEstado, motivo);
+      setNuevoEstado('');
+      setMotivo('');
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo cambiar el estado.');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleMantencion(e) {
+  async function handleMantencion(e) {
     e.preventDefault();
     if (!km) return;
-    registrarMantencion(vehiculo.id, km, '');
-    setKm('');
-    onChanged();
+    setError('');
+    setSaving(true);
+    try {
+      await registrarMantencion(vehiculo.id, km, '');
+      setKm('');
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo registrar la mantención.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -190,7 +236,7 @@ function VehiculoDrawer({ vehiculo, onClose, onChanged }) {
                 <option value="">Seleccionar técnico...</option>
                 {tecnicos.map((t) => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
               </select>
-              <button type="submit" disabled={!tecnicoElegido} className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">Asignar</button>
+              <button type="submit" disabled={!tecnicoElegido || saving} className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">Asignar</button>
             </form>
           )}
 
@@ -202,25 +248,27 @@ function VehiculoDrawer({ vehiculo, onClose, onChanged }) {
                 {nextEstados.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
               <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo (opcional)" className="input" />
-              <button type="submit" disabled={!nuevoEstado} className="w-full bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">Confirmar</button>
+              <button type="submit" disabled={!nuevoEstado || saving} className="w-full bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">Confirmar</button>
             </form>
           )}
 
           <form onSubmit={handleMantencion} className="space-y-2 border border-slate-200 rounded-lg p-4">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Registrar mantención</p>
             <input type="number" min={vehiculo.kilometraje} placeholder="Kilometraje actual" value={km} onChange={(e) => setKm(e.target.value)} className="input" />
-            <button type="submit" disabled={!km} className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">Registrar mantención</button>
+            <button type="submit" disabled={!km || saving} className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">Registrar mantención</button>
           </form>
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
 
           <div>
             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
               <History className="w-3.5 h-3.5" /> Bitácora
             </p>
             <ul className="space-y-3">
-              {[...vehiculo.bitacora].reverse().map((b, i) => (
-                <li key={i} className="text-sm border-l-2 border-slate-200 pl-3">
+              {[...vehiculo.bitacora].reverse().map((b) => (
+                <li key={b.id ?? `${b.evento}-${b.fecha}`} className="text-sm border-l-2 border-slate-200 pl-3">
                   <p className="font-medium text-slate-700">{b.evento}</p>
-                  <p className="text-xs text-slate-500">{b.fecha}</p>
+                  <p className="text-xs text-slate-500">{new Date(b.fecha).toISOString().slice(0, 10)}</p>
                   {b.detalle && <p className="text-xs text-slate-500 mt-0.5">{b.detalle}</p>}
                 </li>
               ))}

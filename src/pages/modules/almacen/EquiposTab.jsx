@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Wrench } from 'lucide-react';
 import { getEmpleados } from '../../../lib/rrhhStore';
 import { getEquipos, asignarEquipo, devolverEquipo } from '../../../lib/almacenStore';
@@ -10,24 +10,32 @@ const ESTADO_STYLES = {
 };
 
 export default function EquiposTab() {
-  const [version, setVersion] = useState(0);
-  const equipos = useMemo(() => getEquipos(), [version]);
-  const tecnicos = useMemo(
-    () => getEmpleados().filter((e) => e.estado === 'Activo' && e.departamento === 'Operaciones / Técnica'),
-    []
-  );
+  const [equipos, setEquipos] = useState([]);
+  const [tecnicos, setTecnicos] = useState([]);
   const [asignando, setAsignando] = useState(null);
   const [tecnicoElegido, setTecnicoElegido] = useState('');
 
-  function refresh() {
-    setVersion((v) => v + 1);
+  async function refresh() {
+    setEquipos(await getEquipos());
   }
 
-  function handleAsignar(id) {
+  useEffect(() => {
+    refresh();
+    getEmpleados().then((empleados) =>
+      setTecnicos(empleados.filter((e) => e.estado === 'Activo' && e.departamento === 'Operaciones / Técnica'))
+    );
+  }, []);
+
+  async function handleAsignar(id) {
     if (!tecnicoElegido) return;
-    asignarEquipo(id, tecnicoElegido);
+    await asignarEquipo(id, tecnicoElegido);
     setAsignando(null);
     setTecnicoElegido('');
+    refresh();
+  }
+
+  async function handleDevolver(id) {
+    await devolverEquipo(id);
     refresh();
   }
 
@@ -56,7 +64,7 @@ export default function EquiposTab() {
               </td>
               <td className="px-4 py-2.5">
                 {e.estado === 'Asignado' ? (
-                  <button onClick={() => { devolverEquipo(e.id); refresh(); }} className="text-xs font-medium text-sky-700 hover:underline">
+                  <button onClick={() => handleDevolver(e.id)} className="text-xs font-medium text-sky-700 hover:underline">
                     Registrar devolución
                   </button>
                 ) : e.estado === 'En bodega' ? (

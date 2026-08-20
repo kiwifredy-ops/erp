@@ -15,15 +15,25 @@ const EMPTY = {
 
 export default function EmpleadoModal({ onClose, onCreated }) {
   const [form, setForm] = useState(EMPTY);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    crearEmpleado(form);
-    onCreated();
+    setError('');
+    setSaving(true);
+    try {
+      await crearEmpleado(form);
+      onCreated();
+    } catch (err) {
+      setError(err.message || 'No se pudo registrar el empleado.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -68,12 +78,14 @@ export default function EmpleadoModal({ onClose, onCreated }) {
             </Field>
           </div>
 
+          {error && <p className="text-xs text-red-600">{error}</p>}
+
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100">
               Cancelar
             </button>
-            <button type="submit" className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 text-white font-medium">
-              Registrar empleado
+            <button type="submit" disabled={saving} className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">
+              {saving ? 'Guardando...' : 'Registrar empleado'}
             </button>
           </div>
         </form>

@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { X, Mail, Phone, History } from 'lucide-react';
 import {
-  getEmpleado,
   getNextEstados,
   cambiarEstadoEmpleado,
   editarEmpleado,
@@ -9,41 +8,50 @@ import {
   TIPOS_CONTRATO,
 } from '../../../lib/rrhhStore';
 
-export default function EmpleadoDrawer({ empleadoId, onClose, onChanged }) {
-  const [version, setVersion] = useState(0);
-  const empleado = useMemo(() => getEmpleado(empleadoId), [empleadoId, version]);
+export default function EmpleadoDrawer({ empleado, onClose, onChanged }) {
   const [nuevoEstado, setNuevoEstado] = useState('');
   const [motivo, setMotivo] = useState('');
   const [editing, setEditing] = useState(false);
-
-  if (!empleado) return null;
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const nextEstados = getNextEstados(empleado.estado);
 
-  function refresh() {
-    setVersion((v) => v + 1);
-    onChanged();
-  }
-
-  function handleCambioEstado(e) {
+  async function handleCambioEstado(e) {
     e.preventDefault();
     if (!nuevoEstado) return;
-    cambiarEstadoEmpleado(empleado.id, nuevoEstado, motivo);
-    setNuevoEstado('');
-    setMotivo('');
-    refresh();
+    setError('');
+    setSaving(true);
+    try {
+      await cambiarEstadoEmpleado(empleado.id, nuevoEstado, motivo);
+      setNuevoEstado('');
+      setMotivo('');
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo actualizar el estado.');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleEdit(e) {
+  async function handleEdit(e) {
     e.preventDefault();
     const form = new FormData(e.target);
-    editarEmpleado(empleado.id, {
-      cargo: form.get('cargo'),
-      departamento: form.get('departamento'),
-      tipoContrato: form.get('tipoContrato'),
-    });
-    setEditing(false);
-    refresh();
+    setError('');
+    setSaving(true);
+    try {
+      await editarEmpleado(empleado.id, {
+        cargo: form.get('cargo'),
+        departamento: form.get('departamento'),
+        tipoContrato: form.get('tipoContrato'),
+      });
+      setEditing(false);
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo guardar el cambio.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -75,7 +83,7 @@ export default function EmpleadoDrawer({ empleadoId, onClose, onChanged }) {
               <Row label="Cargo" value={empleado.cargo} />
               <Row label="Departamento" value={empleado.departamento} />
               <Row label="Tipo de contrato" value={empleado.tipoContrato} />
-              <Row label="Fecha de ingreso" value={empleado.fechaIngreso} />
+              <Row label="Fecha de ingreso" value={new Date(empleado.fechaIngreso).toISOString().slice(0, 10)} />
               <Row label="Estado" value={empleado.estado} />
               <button
                 onClick={() => setEditing(true)}
@@ -106,8 +114,8 @@ export default function EmpleadoDrawer({ empleadoId, onClose, onChanged }) {
                 <button type="button" onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs rounded-md text-slate-600 hover:bg-slate-200">
                   Cancelar
                 </button>
-                <button type="submit" className="px-3 py-1.5 text-xs rounded-md bg-sky-600 hover:bg-sky-700 text-white font-medium">
-                  Guardar cambios
+                <button type="submit" disabled={saving} className="px-3 py-1.5 text-xs rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">
+                  {saving ? 'Guardando...' : 'Guardar cambios'}
                 </button>
               </div>
             </form>
@@ -132,23 +140,25 @@ export default function EmpleadoDrawer({ empleadoId, onClose, onChanged }) {
               />
               <button
                 type="submit"
-                disabled={!nuevoEstado}
+                disabled={!nuevoEstado || saving}
                 className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2"
               >
-                Confirmar cambio
+                {saving ? 'Guardando...' : 'Confirmar cambio'}
               </button>
             </form>
           )}
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
 
           <div>
             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
               <History className="w-3.5 h-3.5" /> Bitácora
             </p>
             <ul className="space-y-3">
-              {[...empleado.bitacora].reverse().map((b, i) => (
-                <li key={i} className="text-sm border-l-2 border-slate-200 pl-3">
+              {[...empleado.bitacora].reverse().map((b) => (
+                <li key={b.id ?? `${b.evento}-${b.fecha}`} className="text-sm border-l-2 border-slate-200 pl-3">
                   <p className="font-medium text-slate-700">{b.evento}</p>
-                  <p className="text-xs text-slate-500">{b.fecha}</p>
+                  <p className="text-xs text-slate-500">{new Date(b.fecha).toISOString().slice(0, 10)}</p>
                   {b.detalle && <p className="text-xs text-slate-500 mt-0.5">{b.detalle}</p>}
                 </li>
               ))}

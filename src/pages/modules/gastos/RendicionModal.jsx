@@ -7,6 +7,8 @@ const emptyLinea = () => ({ categoria: CATEGORIAS_GASTO[0], monto: '', descripci
 export default function RendicionModal({ empleados, onClose, onCreated }) {
   const [tecnico, setTecnico] = useState(empleados[0]?.nombre ?? '');
   const [lineas, setLineas] = useState([emptyLinea()]);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   function setLinea(i, field, value) {
     setLineas((ls) => ls.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
@@ -20,12 +22,20 @@ export default function RendicionModal({ empleados, onClose, onCreated }) {
     setLineas((ls) => ls.filter((_, idx) => idx !== i));
   }
 
-  function handleSubmit(e) {
+async function handleSubmit(e) {
     e.preventDefault();
     const validLineas = lineas.filter((l) => l.monto && l.descripcion);
     if (!tecnico || validLineas.length === 0) return;
-    crearRendicion({ tecnico, fecha: new Date().toISOString().slice(0, 10), lineas: validLineas });
-    onCreated();
+    setError('');
+    setSaving(true);
+    try {
+      await crearRendicion({ tecnico, fecha: new Date().toISOString().slice(0, 10), lineas: validLineas });
+      onCreated();
+    } catch (err) {
+      setError(err.message || 'No se pudo enviar la rendición.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -70,9 +80,10 @@ export default function RendicionModal({ empleados, onClose, onCreated }) {
             </button>
           </div>
 
+          {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100">Cancelar</button>
-            <button type="submit" className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 text-white font-medium">Enviar rendición</button>
+            <button type="submit" disabled={saving} className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">{saving ? 'Enviando...' : 'Enviar rendición'}</button>
           </div>
         </form>
       </div>

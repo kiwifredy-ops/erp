@@ -1,29 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { X, History, Receipt } from 'lucide-react';
-import { getRendiciones, getTotal, getNextEstados, cambiarEstadoRendicion } from '../../../lib/gastosStore';
+import { getTotal, getNextEstados, cambiarEstadoRendicion } from '../../../lib/gastosStore';
 import { formatCLP, ESTADO_STYLES } from './GastosModule';
 
-export default function RendicionDrawer({ rendicionId, onClose, onChanged }) {
-  const [version, setVersion] = useState(0);
-  const rendicion = useMemo(() => getRendiciones().find((r) => r.id === rendicionId), [rendicionId, version]);
+export default function RendicionDrawer({ rendicion, onClose, onChanged }) {
   const [nuevoEstado, setNuevoEstado] = useState('');
   const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  if (!rendicion) return null;
   const nextEstados = getNextEstados(rendicion.estado);
 
-  function refresh() {
-    setVersion((v) => v + 1);
-    onChanged();
-  }
-
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!nuevoEstado) return;
-    cambiarEstadoRendicion(rendicion.id, nuevoEstado, motivo);
-    setNuevoEstado('');
-    setMotivo('');
-    refresh();
+    setError('');
+    setSaving(true);
+    try {
+      await cambiarEstadoRendicion(rendicion.id, nuevoEstado, motivo);
+      setNuevoEstado('');
+      setMotivo('');
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo actualizar el estado.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -32,8 +34,8 @@ export default function RendicionDrawer({ rendicionId, onClose, onChanged }) {
       <div className="relative w-full max-w-md bg-white h-full shadow-xl overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 sticky top-0 bg-white">
           <div>
-            <h2 className="text-sm font-semibold text-slate-800">{rendicion.id}</h2>
-            <p className="text-xs text-slate-500">{rendicion.tecnico} · {rendicion.fecha}</p>
+            <h2 className="text-sm font-semibold text-slate-800">{rendicion.folio}</h2>
+            <p className="text-xs text-slate-500">{rendicion.tecnico} · {new Date(rendicion.fecha).toISOString().slice(0, 10)}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="w-4.5 h-4.5" /></button>
         </div>
@@ -49,12 +51,12 @@ export default function RendicionDrawer({ rendicionId, onClose, onChanged }) {
               <Receipt className="w-3.5 h-3.5" /> Ítems
             </p>
             <ul className="space-y-2">
-              {rendicion.lineas.map((l, i) => (
-                <li key={i} className="bg-slate-50 rounded-md p-3 text-sm flex justify-between">
+              {rendicion.lineas.map((l) => (
+                <li key={l.id} className="bg-slate-50 rounded-md p-3 text-sm flex justify-between">
                   <div>
                     <p className="font-medium text-slate-700">{l.categoria}</p>
                     <p className="text-xs text-slate-500">{l.descripcion}</p>
-                    <p className="text-xs text-slate-400">{l.fecha}</p>
+                    <p className="text-xs text-slate-400">{new Date(l.fecha).toISOString().slice(0, 10)}</p>
                   </div>
                   <p className="font-medium text-slate-800">{formatCLP(l.monto)}</p>
                 </li>
@@ -70,9 +72,8 @@ export default function RendicionDrawer({ rendicionId, onClose, onChanged }) {
                 {nextEstados.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
               <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Observación (opcional)" className="input" />
-              <button type="submit" disabled={!nuevoEstado} className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">
-                Confirmar
-              </button>
+              {error && <p className="text-xs text-red-600">{error}</p>}
+              <button type="submit" disabled={!nuevoEstado || saving} className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">{saving ? 'Guardando...' : 'Confirmar'}</button>
             </form>
           )}
 
@@ -81,10 +82,10 @@ export default function RendicionDrawer({ rendicionId, onClose, onChanged }) {
               <History className="w-3.5 h-3.5" /> Bitácora
             </p>
             <ul className="space-y-3">
-              {[...rendicion.bitacora].reverse().map((b, i) => (
-                <li key={i} className="text-sm border-l-2 border-slate-200 pl-3">
+              {[...rendicion.bitacora].reverse().map((b) => (
+                <li key={b.id ?? `${b.evento}-${b.fecha}`} className="text-sm border-l-2 border-slate-200 pl-3">
                   <p className="font-medium text-slate-700">{b.evento}</p>
-                  <p className="text-xs text-slate-500">{b.fecha}</p>
+                  <p className="text-xs text-slate-500">{new Date(b.fecha).toISOString().slice(0, 10)}</p>
                   {b.detalle && <p className="text-xs text-slate-500 mt-0.5">{b.detalle}</p>}
                 </li>
               ))}

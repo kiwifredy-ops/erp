@@ -1,25 +1,34 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Search, AlertTriangle, X, History } from 'lucide-react';
 import { getItems, crearItem, registrarMovimiento, CATEGORIAS_ITEM, UNIDADES } from '../../../lib/almacenStore';
 
 export default function InventarioTab() {
-  const [version, setVersion] = useState(0);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [categoria, setCategoria] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
-  const items = useMemo(() => getItems(), [version]);
+  async function refresh() {
+    setLoading(true);
+    try {
+      setItems(await getItems());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
   const filtered = items.filter((it) => {
     const matchesQuery = !query || it.nombre.toLowerCase().includes(query.toLowerCase());
     const matchesCat = !categoria || it.categoria === categoria;
     return matchesQuery && matchesCat;
   });
-  const selected = items.find((it) => it.id === selectedId);
-
-  function refresh() {
-    setVersion((v) => v + 1);
-  }
+  const selected = items.find((it) => it.id === selectedId) ?? null;
 
   return (
     <div className="space-y-4">
@@ -69,6 +78,9 @@ export default function InventarioTab() {
                 </tr>
               );
             })}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400 text-sm">Sin materiales que coincidan con el filtro.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -86,8 +98,23 @@ export default function InventarioTab() {
 
 function CreateItemModal({ onClose, onCreated }) {
   const [form, setForm] = useState({ nombre: '', categoria: CATEGORIAS_ITEM[0], unidad: UNIDADES[0], stock: 0, stockMinimo: 0, ubicacion: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
-  function handleSubmit(e) { e.preventDefault(); crearItem(form); onCreated(); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await crearItem(form);
+      onCreated();
+    } catch (err) {
+      setError(err.message || 'No se pudo registrar el material.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
@@ -127,9 +154,10 @@ function CreateItemModal({ onClose, onCreated }) {
               <input required value={form.ubicacion} onChange={(e) => set('ubicacion', e.target.value)} className="input" />
             </label>
           </div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100">Cancelar</button>
-            <button type="submit" className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 text-white font-medium">Registrar material</button>
+            <button type="submit" disabled={saving} className="px-3 py-2 text-sm rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">{saving ? 'Guardando...' : 'Registrar material'}</button>
           </div>
         </form>
       </div>
@@ -141,14 +169,24 @@ function ItemDrawer({ item, onClose, onChanged }) {
   const [tipo, setTipo] = useState('Entrada');
   const [cantidad, setCantidad] = useState('');
   const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!cantidad || Number(cantidad) <= 0) return;
-    registrarMovimiento(item.id, tipo, Number(cantidad), motivo);
-    setCantidad('');
-    setMotivo('');
-    onChanged();
+    setError('');
+    setSaving(true);
+    try {
+      await registrarMovimiento(item.id, tipo, Number(cantidad), motivo);
+      setCantidad('');
+      setMotivo('');
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo registrar el movimiento.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -180,7 +218,8 @@ function ItemDrawer({ item, onClose, onChanged }) {
               <input type="number" min="1" placeholder="Cantidad" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className="input" />
             </div>
             <input placeholder="Motivo (opcional)" value={motivo} onChange={(e) => setMotivo(e.target.value)} className="input" />
-            <button type="submit" className="w-full bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium rounded-md py-2">Confirmar movimiento</button>
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <button type="submit" disabled={saving} className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-md py-2">{saving ? 'Guardando...' : 'Confirmar movimiento'}</button>
           </form>
 
           <div>
@@ -188,10 +227,10 @@ function ItemDrawer({ item, onClose, onChanged }) {
               <History className="w-3.5 h-3.5" /> Movimientos
             </p>
             <ul className="space-y-3">
-              {[...item.movimientos].reverse().map((m, i) => (
-                <li key={i} className="text-sm border-l-2 border-slate-200 pl-3">
+              {[...item.movimientos].reverse().map((m) => (
+                <li key={m.id ?? `${m.tipo}-${m.fecha}`} className="text-sm border-l-2 border-slate-200 pl-3">
                   <p className="font-medium text-slate-700">{m.tipo} · {m.cantidad} {item.unidad}</p>
-                  <p className="text-xs text-slate-500">{m.fecha}</p>
+                  <p className="text-xs text-slate-500">{new Date(m.fecha).toISOString().slice(0, 10)}</p>
                   {m.motivo && <p className="text-xs text-slate-500 mt-0.5">{m.motivo}</p>}
                 </li>
               ))}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { getRendiciones, getTotal, ESTADOS_RENDICION } from '../../../lib/gastosStore';
 import { getEmpleados } from '../../../lib/rrhhStore';
@@ -16,28 +16,38 @@ const ESTADO_STYLES = {
 const formatCLP = (n) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
 
 export default function GastosModule() {
-  const [version, setVersion] = useState(0);
+  const [rendiciones, setRendiciones] = useState([]);
+  const [empleados, setEmpleados] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [tecnico, setTecnico] = useState('');
   const [estado, setEstado] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
-  const rendiciones = useMemo(() => getRendiciones(), [version]);
-  const tecnicos = useMemo(() => [...new Set(rendiciones.map((r) => r.tecnico))], [rendiciones]);
-  const empleados = useMemo(() => getEmpleados().filter((e) => e.estado === 'Activo'), []);
+  async function refresh() {
+    setLoading(true);
+    try {
+      setRendiciones(await getRendiciones());
+    } finally {
+      setLoading(false);
+    }
+  }
 
+  useEffect(() => {
+    refresh();
+    getEmpleados().then((emps) => setEmpleados(emps.filter((e) => e.estado === 'Activo')));
+  }, []);
+
+  const tecnicos = [...new Set(rendiciones.map((r) => r.tecnico))];
   const filtered = rendiciones.filter((r) => {
     const matchesTecnico = !tecnico || r.tecnico === tecnico;
     const matchesEstado = !estado || r.estado === estado;
     return matchesTecnico && matchesEstado;
   });
+  const selected = rendiciones.find((r) => r.id === selectedId) ?? null;
 
   const pendientes = rendiciones.filter((r) => ['Enviada', 'En revisión'].includes(r.estado)).length;
   const totalMes = rendiciones.reduce((sum, r) => sum + getTotal(r), 0);
-
-  function refresh() {
-    setVersion((v) => v + 1);
-  }
 
   return (
     <div className="space-y-5">
@@ -94,9 +104,9 @@ export default function GastosModule() {
           <tbody className="divide-y divide-slate-100">
             {filtered.map((r) => (
               <tr key={r.id} onClick={() => setSelectedId(r.id)} className="hover:bg-slate-50 cursor-pointer">
-                <td className="px-4 py-2.5 font-medium text-slate-800">{r.id}</td>
+                <td className="px-4 py-2.5 font-medium text-slate-800">{r.folio}</td>
                 <td className="px-4 py-2.5 text-slate-600">{r.tecnico}</td>
-                <td className="px-4 py-2.5 text-slate-600">{r.fecha}</td>
+                <td className="px-4 py-2.5 text-slate-600">{new Date(r.fecha).toISOString().slice(0, 10)}</td>
                 <td className="px-4 py-2.5 text-slate-600">{r.lineas.length}</td>
                 <td className="px-4 py-2.5 text-slate-600">{formatCLP(getTotal(r))}</td>
                 <td className="px-4 py-2.5">
@@ -104,7 +114,7 @@ export default function GastosModule() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400 text-sm">Sin rendiciones que coincidan con el filtro.</td></tr>
             )}
           </tbody>
@@ -115,8 +125,8 @@ export default function GastosModule() {
         <RendicionModal empleados={empleados} onClose={() => setShowCreate(false)} onCreated={() => { refresh(); setShowCreate(false); }} />
       )}
 
-      {selectedId && (
-        <RendicionDrawer rendicionId={selectedId} onClose={() => setSelectedId(null)} onChanged={refresh} />
+      {selected && (
+        <RendicionDrawer rendicion={selected} onClose={() => setSelectedId(null)} onChanged={refresh} />
       )}
     </div>
   );
