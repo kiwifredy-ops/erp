@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth / Usuarios del sistema ---------------------------------------
+
+model Usuario {
+  id        String   @id @default(cuid())
+  nombre    String
+  email     String   @unique
+  password  String
+  rol       String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// --- RRHH ----------------------------------------------------------------
+
+model Empleado {
+  id           String             @id @default(cuid())
+  nombre       String
+  documento    String             @unique
+  cargo        String
+  departamento String
+  tipoContrato String
+  fechaIngreso DateTime
+  estado       String             @default("Activo")
+  email        String?
+  telefono     String?
+  createdAt    DateTime           @default(now())
+  bitacora     EmpleadoBitacora[]
+}
+
+model EmpleadoBitacora {
+  id         String   @id @default(cuid())
+  empleadoId String
+  empleado   Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  fecha      DateTime
+  evento     String
+  detalle    String?  @db.Text
+
+  @@index([empleadoId])
+}
+
+// --- Almacén y Logística --------------------------------------------------
+
+model Item {
+  id          String           @id @default(cuid())
+  nombre      String
+  categoria   String
+  unidad      String
+  stock       Int              @default(0)
+  stockMinimo Int              @default(0)
+  ubicacion   String
+  createdAt   DateTime         @default(now())
+  movimientos ItemMovimiento[]
+}
+
+model ItemMovimiento {
+  id       String   @id @default(cuid())
+  itemId   String
+  item     Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  fecha    DateTime
+  tipo     String
+  cantidad Int
+  motivo   String?  @db.Text
+
+  @@index([itemId])
+}
+
+model Equipo {
+  id              String           @id @default(cuid())
+  equipo          String
+  tipo            String
+  tecnico         String?
+  estado          String           @default("En bodega")
+  fechaAsignacion DateTime?
+  createdAt       DateTime         @default(now())
+  bitacora        EquipoBitacora[]
+}
+
+model EquipoBitacora {
+  id       String   @id @default(cuid())
+  equipoId String
+  equipo   Equipo   @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+  fecha    DateTime
+  evento   String
+  detalle  String?  @db.Text
+
+  @@index([equipoId])
+}
+
+// --- Rendición de Gastos --------------------------------------------------
+
+model Rendicion {
+  id        String              @id @default(cuid())
+  folio     String              @unique
+  tecnico   String
+  fecha     DateTime
+  estado    String              @default("Enviada")
+  createdAt DateTime            @default(now())
+  lineas    RendicionLinea[]
+  bitacora  RendicionBitacora[]
+}
+
+model RendicionLinea {
+  id          String    @id @default(cuid())
+  rendicionId String
+  rendicion   Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
+  categoria   String
+  monto       Int
+  descripcion String
+  fecha       DateTime
+
+  @@index([rendicionId])
+}
+
+model RendicionBitacora {
+  id          String    @id @default(cuid())
+  rendicionId String
+  rendicion   Rendicion @relation(fields: [rendicionId], references: [id], onDelete: Cascade)
+  fecha       DateTime
+  evento      String
+  detalle     String?   @db.Text
+
+  @@index([rendicionId])
+}
+
+// --- Asistencia ------------------------------------------------------------
+
+model Marcacion {
+  id              String   @id @default(cuid())
+  empleado        String
+  fecha           DateTime
+  horaEntrada     String?
+  horaSalida      String?
+  estado          String
+  horasTrabajadas Float    @default(0)
+  createdAt       DateTime @default(now())
+}
+
+// --- Flota de Vehículos -----------------------------------------------------
+
+model Vehiculo {
+  id                  String             @id @default(cuid())
+  patente             String             @unique
+  marca               String
+  modelo              String
+  anio                Int
+  tipo                String
+  estado              String             @default("Disponible")
+  tecnico             String?
+  kilometraje         Int                @default(0)
+  proximaMantencionKm Int                @default(0)
+  createdAt           DateTime           @default(now())
+  bitacora            VehiculoBitacora[]
+}
+
+model VehiculoBitacora {
+  id         String   @id @default(cuid())
+  vehiculoId String
+  vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
+  fecha      DateTime
+  evento     String
+  detalle    String?  @db.Text
+
+  @@index([vehiculoId])
+}
+
+// --- Abastecimiento ----------------------------------------------------------
+
+model Proveedor {
+  id       String  @id @default(cuid())
+  nombre   String
+  rubro    String
+  contacto String?
+  telefono String?
+  activo   Boolean @default(true)
+}
+
+model OrdenCompra {
+  id        String                @id @default(cuid())
+  folio     String                @unique
+  proveedor String
+  fecha     DateTime
+  estado    String                @default("Solicitada")
+  createdAt DateTime              @default(now())
+  items     OrdenCompraItem[]
+  bitacora  OrdenCompraBitacora[]
+}
+
+model OrdenCompraItem {
+  id             String      @id @default(cuid())
+  ordenId        String
+  orden          OrdenCompra @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  descripcion    String
+  cantidad       Int
+  precioUnitario Int
+
+  @@index([ordenId])
+}
+
+model OrdenCompraBitacora {
+  id      String      @id @default(cuid())
+  ordenId String
+  orden   OrdenCompra @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  fecha   DateTime
+  evento  String
+  detalle String?     @db.Text
+
+  @@index([ordenId])
+}
