@@ -3,6 +3,7 @@ import { Plus, Search } from 'lucide-react';
 import { getEmpleados, DEPARTAMENTOS, ESTADOS_EMPLEADO } from '../../../lib/rrhhStore';
 import EmpleadoModal from './EmpleadoModal';
 import EmpleadoDrawer from './EmpleadoDrawer';
+import AlertasBanner from './AlertasBanner';
 
 const ESTADO_STYLES = {
   Activo: 'bg-emerald-50 text-emerald-700',
@@ -50,6 +51,8 @@ export default function EmpleadosTab() {
 
   return (
     <div className="space-y-4">
+      <AlertasBanner onSelect={setSelectedId} refreshKey={empleados} />
+
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />

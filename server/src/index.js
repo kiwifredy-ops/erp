@@ -13,7 +13,8 @@ const app = express();
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true }));
-app.use(express.json());
+// límite alto: documentos e imágenes (contrato, cédula, licencia) se suben como base64
+app.use(express.json({ limit: '15mb' }));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

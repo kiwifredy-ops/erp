@@ -33,7 +33,66 @@ model Empleado {
   email        String?
   telefono     String?
   createdAt    DateTime           @default(now())
-  bitacora     EmpleadoBitacora[]
+
+  // Contrato
+  fechaTerminoContrato DateTime? // plazo fijo / fecha determinada — alerta 5 días antes
+
+  // Previsión
+  afp             String?
+  isapre          String?
+  isapreAdicional String?
+
+  // Datos personales
+  estadoCivil               String?
+  direccionCalle            String?
+  direccionNumero           String?
+  direccionComuna           String?
+  direccionCiudad           String?
+  contactoEmergenciaNombre  String?
+  contactoEmergenciaTelefono String?
+
+  // Salud
+  grupoSanguineo     String?
+  alergias           String? @db.Text
+  tratamientoMedico  String? @db.Text
+
+  // Licencia de conducir
+  licenciaConducir Boolean @default(false)
+  licenciaClase    String?
+
+  // Cédula de identidad — alerta 1 mes antes del vencimiento
+  rutSerie       String?
+  rutVencimiento DateTime?
+
+  bitacora   EmpleadoBitacora[]
+  hijos      Hijo[]
+  documentos Documento[]
+}
+
+model Hijo {
+  id              String    @id @default(cuid())
+  empleadoId      String
+  empleado        Empleado  @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  nombre          String
+  fechaNacimiento DateTime?
+
+  @@index([empleadoId])
+}
+
+// Almacena contratos, anexos, foto de perfil, cédula (frente/dorso) y
+// licencia de conducir (frente/dorso) como base64 — sin infraestructura de
+// almacenamiento de archivos adicional.
+model Documento {
+  id            String   @id @default(cuid())
+  empleadoId    String
+  empleado      Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  tipo          String
+  nombreArchivo String
+  mimeType      String
+  contenido     String   @db.LongText
+  fechaSubida   DateTime @default(now())
+
+  @@index([empleadoId])
 }
 
 model EmpleadoBitacora {

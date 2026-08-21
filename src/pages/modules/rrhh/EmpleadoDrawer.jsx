@@ -7,6 +7,9 @@ import {
   DEPARTAMENTOS,
   TIPOS_CONTRATO,
 } from '../../../lib/rrhhStore';
+import FichaPerfilSection from './FichaPerfilSection';
+import HijosSection from './HijosSection';
+import DocumentosSection from './DocumentosSection';
 
 export default function EmpleadoDrawer({ empleado, onClose, onChanged }) {
   const [nuevoEstado, setNuevoEstado] = useState('');
@@ -150,7 +153,19 @@ export default function EmpleadoDrawer({ empleado, onClose, onChanged }) {
 
           {error && <p className="text-xs text-red-600">{error}</p>}
 
-          <div>
+          <div className="border-t border-slate-200 pt-5">
+            <FichaPerfilSection empleado={empleado} onChanged={onChanged} />
+          </div>
+
+          <div className="border-t border-slate-200 pt-5">
+            <HijosSection empleado={empleado} onChanged={onChanged} />
+          </div>
+
+          <div className="border-t border-slate-200 pt-5">
+            <DocumentosSection empleado={empleado} onChanged={onChanged} />
+          </div>
+
+          <div className="border-t border-slate-200 pt-5">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
               <History className="w-3.5 h-3.5" /> Bitácora
             </p>
