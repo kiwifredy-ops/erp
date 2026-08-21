@@ -238,6 +238,12 @@ model Vehiculo {
   kilometraje         Int                @default(0)
   proximaMantencionKm Int                @default(0)
   createdAt           DateTime           @default(now())
+
+  // Documentación legal del vehículo — cada una con vencimiento propio.
+  vencimientoRevisionTecnica    DateTime?
+  vencimientoSeguro             DateTime?
+  vencimientoPermisoCirculacion DateTime?
+
   bitacora            VehiculoBitacora[]
 }
 

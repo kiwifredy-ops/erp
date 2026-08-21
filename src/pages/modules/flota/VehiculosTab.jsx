@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, History, Car } from 'lucide-react';
-import { getVehiculos, crearVehiculo, asignarVehiculo, cambiarEstadoVehiculo, registrarMantencion, getNextEstados, TIPOS_VEHICULO, ESTADOS_VEHICULO } from '../../../lib/flotaStore';
+import { Plus, X, History, Car, FileText } from 'lucide-react';
+import { getVehiculos, crearVehiculo, asignarVehiculo, cambiarEstadoVehiculo, registrarMantencion, editarDocumentacion, getNextEstados, TIPOS_VEHICULO, ESTADOS_VEHICULO } from '../../../lib/flotaStore';
 import { getEmpleados } from '../../../lib/rrhhStore';
+import AlertasDocumentosBanner from './AlertasDocumentosBanner';
+
+const toDateInput = (v) => (v ? new Date(v).toISOString().slice(0, 10) : '');
 
 const ESTADO_STYLES = {
   Disponible: 'bg-emerald-50 text-emerald-700',
@@ -31,6 +34,8 @@ export default function VehiculosTab() {
 
   return (
     <div className="space-y-4">
+      <AlertasDocumentosBanner refreshKey={vehiculos} onSelect={setSelectedId} />
+
       <div className="flex flex-wrap items-center gap-2">
         <select value={estado} onChange={(e) => setEstado(e.target.value)} className="text-sm border border-slate-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
           <option value="">Todos los estados</option>
@@ -150,15 +155,48 @@ function CreateVehiculoModal({ onClose, onCreated }) {
   );
 }
 
+const DOCS_VEHICULO = [
+  { campo: 'vencimientoRevisionTecnica', label: 'Revisión técnica' },
+  { campo: 'vencimientoSeguro', label: 'Seguro' },
+  { campo: 'vencimientoPermisoCirculacion', label: 'Permiso de circulación' },
+];
+
+function diasHasta(fecha) {
+  if (!fecha) return null;
+  const ms = new Date(fecha).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0);
+  return Math.round(ms / 86400000);
+}
+
 function VehiculoDrawer({ vehiculo, tecnicos, onClose, onChanged }) {
   const [tecnicoElegido, setTecnicoElegido] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState('');
   const [motivo, setMotivo] = useState('');
   const [km, setKm] = useState('');
+  const [editingDocs, setEditingDocs] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const nextEstados = getNextEstados(vehiculo.estado);
+
+  async function handleDocs(e) {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    setError('');
+    setSaving(true);
+    try {
+      await editarDocumentacion(vehiculo.id, {
+        vencimientoRevisionTecnica: form.get('vencimientoRevisionTecnica') || null,
+        vencimientoSeguro: form.get('vencimientoSeguro') || null,
+        vencimientoPermisoCirculacion: form.get('vencimientoPermisoCirculacion') || null,
+      });
+      setEditingDocs(false);
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo guardar la documentación.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleAsignar(e) {
     e.preventDefault();
@@ -228,6 +266,42 @@ function VehiculoDrawer({ vehiculo, tecnicos, onClose, onChanged }) {
             <div className="flex justify-between"><span className="text-slate-500">Kilometraje</span><span className="font-medium text-slate-800">{vehiculo.kilometraje.toLocaleString('es-CL')} km</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Próxima mantención</span><span className="font-medium text-slate-800">{vehiculo.proximaMantencionKm.toLocaleString('es-CL')} km</span></div>
           </div>
+
+          {!editingDocs ? (
+            <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                <FileText className="w-3.5 h-3.5" /> Documentación
+              </p>
+              {DOCS_VEHICULO.map((d) => {
+                const dias = diasHasta(vehiculo[d.campo]);
+                const vencido = dias !== null && dias <= 30;
+                return (
+                  <div key={d.campo} className="flex justify-between">
+                    <span className="text-slate-500">{d.label}</span>
+                    <span className={`font-medium ${vencido ? 'text-amber-600' : 'text-slate-800'}`}>
+                      {toDateInput(vehiculo[d.campo]) || 'Sin registrar'}
+                    </span>
+                  </div>
+                );
+              })}
+              <button onClick={() => setEditingDocs(true)} className="text-xs font-medium text-sky-700 hover:underline pt-1">
+                Editar documentación
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleDocs} className="bg-slate-50 rounded-lg p-4 space-y-3">
+              {DOCS_VEHICULO.map((d) => (
+                <label key={d.campo} className="block">
+                  <span className="block text-xs font-medium text-slate-600 mb-1">{d.label} — vencimiento</span>
+                  <input type="date" name={d.campo} defaultValue={toDateInput(vehiculo[d.campo])} className="input" />
+                </label>
+              ))}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setEditingDocs(false)} className="px-3 py-1.5 text-xs rounded-md text-slate-600 hover:bg-slate-200">Cancelar</button>
+                <button type="submit" disabled={saving} className="px-3 py-1.5 text-xs rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">{saving ? 'Guardando...' : 'Guardar'}</button>
+              </div>
+            </form>
+          )}
 
           {vehiculo.estado === 'Disponible' && (
             <form onSubmit={handleAsignar} className="space-y-2 border border-slate-200 rounded-lg p-4">

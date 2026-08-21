@@ -18,8 +18,16 @@ export function getVehiculos() {
   return api('/flota/vehiculos');
 }
 
+export function getAlertasDocumentos() {
+  return api('/flota/vehiculos/alertas');
+}
+
 export function crearVehiculo(data) {
   return api('/flota/vehiculos', { method: 'POST', body: data });
+}
+
+export function editarDocumentacion(id, cambios) {
+  return api(`/flota/vehiculos/${id}`, { method: 'PATCH', body: cambios });
 }
 
 export function asignarVehiculo(id, tecnico) {

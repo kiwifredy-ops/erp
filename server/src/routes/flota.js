@@ -20,6 +20,32 @@ flotaRouter.get('/vehiculos', async (req, res) => {
   res.json(vehiculos);
 });
 
+function diasHasta(fecha) {
+  if (!fecha) return null;
+  const ms = new Date(fecha).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0);
+  return Math.round(ms / 86400000);
+}
+
+const DOCS_VEHICULO = [
+  { campo: 'vencimientoRevisionTecnica', nombre: 'Revisión técnica' },
+  { campo: 'vencimientoSeguro', nombre: 'Seguro' },
+  { campo: 'vencimientoPermisoCirculacion', nombre: 'Permiso de circulación' },
+];
+
+flotaRouter.get('/vehiculos/alertas', async (req, res) => {
+  const vehiculos = await prisma.vehiculo.findMany({ where: { estado: { not: 'Fuera de servicio' } } });
+  const alertas = [];
+  for (const v of vehiculos) {
+    for (const doc of DOCS_VEHICULO) {
+      const dias = diasHasta(v[doc.campo]);
+      if (dias !== null && dias <= 30) {
+        alertas.push({ id: v.id, patente: v.patente, documento: doc.nombre, fecha: v[doc.campo], diasRestantes: dias });
+      }
+    }
+  }
+  res.json({ documentosPorVencer: alertas });
+});
+
 flotaRouter.post('/vehiculos', async (req, res) => {
   const { patente, marca, modelo, anio, tipo, kilometraje, proximaMantencionKm } = req.body;
   const vehiculo = await prisma.vehiculo.create({
@@ -36,6 +62,19 @@ flotaRouter.post('/vehiculos', async (req, res) => {
     include: { bitacora: true },
   });
   res.status(201).json(vehiculo);
+});
+
+flotaRouter.patch('/vehiculos/:id', async (req, res) => {
+  const data = {};
+  for (const doc of DOCS_VEHICULO) {
+    if (req.body[doc.campo] !== undefined) data[doc.campo] = req.body[doc.campo] ? new Date(req.body[doc.campo]) : null;
+  }
+  const vehiculo = await prisma.vehiculo.update({
+    where: { id: req.params.id },
+    data: { ...data, bitacora: { create: [{ fecha: new Date(), evento: 'Actualización de documentación', detalle: 'Se actualizaron fechas de documentos del vehículo.' }] } },
+    include: { bitacora: { orderBy: { fecha: 'asc' } } },
+  });
+  res.json(vehiculo);
 });
 
 flotaRouter.post('/vehiculos/:id/asignar', async (req, res) => {
