@@ -18,7 +18,7 @@ export default function MantencionesTab() {
     .sort((a, b) => a.kmRestantes - b.kmRestantes);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-lg overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
           <tr>
