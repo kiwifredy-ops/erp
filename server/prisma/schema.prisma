@@ -182,6 +182,13 @@ model RendicionLinea {
   descripcion String
   fecha       DateTime
 
+  // Kilometraje: km recorridos con vehículo propio (monto se calcula × tarifa/km)
+  kilometros Int?
+
+  // Boleta/factura adjunta, como base64 (mismo enfoque que Documento en RRHH)
+  comprobante       String? @db.LongText
+  comprobanteNombre String?
+
   @@index([rendicionId])
 }
 

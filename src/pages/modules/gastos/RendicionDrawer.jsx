@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { X, History, Receipt } from 'lucide-react';
-import { getTotal, getNextEstados, cambiarEstadoRendicion } from '../../../lib/gastosStore';
+import { X, History, Receipt, Paperclip } from 'lucide-react';
+import { getTotal, getNextEstados, cambiarEstadoRendicion, getComprobante } from '../../../lib/gastosStore';
 import { formatCLP, ESTADO_STYLES } from './GastosModule';
 
 export default function RendicionDrawer({ rendicion, onClose, onChanged }) {
@@ -8,8 +8,26 @@ export default function RendicionDrawer({ rendicion, onClose, onChanged }) {
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [viewingId, setViewingId] = useState(null);
 
   const nextEstados = getNextEstados(rendicion.estado);
+
+  async function handleVerComprobante(lineaId) {
+    setViewingId(lineaId);
+    try {
+      const { comprobante, comprobanteNombre } = await getComprobante(rendicion.id, lineaId);
+      const win = window.open();
+      if (win) {
+        if (comprobante.startsWith('data:image/')) {
+          win.document.write(`<title>${comprobanteNombre}</title><img src="${comprobante}" style="max-width:100%" />`);
+        } else {
+          win.location.href = comprobante;
+        }
+      }
+    } finally {
+      setViewingId(null);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -52,13 +70,27 @@ export default function RendicionDrawer({ rendicion, onClose, onChanged }) {
             </p>
             <ul className="space-y-2">
               {rendicion.lineas.map((l) => (
-                <li key={l.id} className="bg-slate-50 rounded-md p-3 text-sm flex justify-between">
-                  <div>
-                    <p className="font-medium text-slate-700">{l.categoria}</p>
-                    <p className="text-xs text-slate-500">{l.descripcion}</p>
-                    <p className="text-xs text-slate-400">{new Date(l.fecha).toISOString().slice(0, 10)}</p>
+                <li key={l.id} className="bg-slate-50 rounded-md p-3 text-sm">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="font-medium text-slate-700">{l.categoria}</p>
+                      <p className="text-xs text-slate-500">{l.descripcion}</p>
+                      <p className="text-xs text-slate-400">
+                        {new Date(l.fecha).toISOString().slice(0, 10)}
+                        {l.kilometros ? ` · ${l.kilometros} km` : ''}
+                      </p>
+                    </div>
+                    <p className="font-medium text-slate-800">{formatCLP(l.monto)}</p>
                   </div>
-                  <p className="font-medium text-slate-800">{formatCLP(l.monto)}</p>
+                  {l.comprobanteNombre && (
+                    <button
+                      onClick={() => handleVerComprobante(l.id)}
+                      disabled={viewingId === l.id}
+                      className="flex items-center gap-1 text-xs text-sky-700 hover:underline mt-1.5"
+                    >
+                      <Paperclip className="w-3 h-3" /> Ver comprobante
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
