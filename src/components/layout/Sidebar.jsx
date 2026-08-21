@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, ShieldCheck, X } from 'lucide-react';
 import { MODULES } from '../../lib/modules';
-import { puedeVer } from '../../lib/authStore';
+import { tieneAcceso } from '../../lib/authStore';
 
 function NavContent({ visibles, onNavigate }) {
   return (
@@ -59,7 +59,7 @@ function Brand() {
 }
 
 export default function Sidebar({ mobileOpen, onCloseMobile }) {
-  const visibles = MODULES.filter((m) => puedeVer(m.id));
+  const visibles = MODULES.filter((m) => tieneAcceso(m.id));
 
   return (
     <>

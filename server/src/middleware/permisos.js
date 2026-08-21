@@ -7,16 +7,18 @@ const CAMPOS = {
   eliminar: 'puedeEliminar',
 };
 
+export async function tienePermiso(rol, moduloId, accion) {
+  const campo = CAMPOS[accion];
+  const permiso = await prisma.rolPermiso.findUnique({ where: { rol_moduloId: { rol, moduloId } } });
+  return !!permiso?.[campo];
+}
+
 // Sin fila de permiso explícita para (rol, módulo) => acceso denegado por
 // defecto. Se aplica después de requireAuth, ya que necesita req.user.rol.
 export function requirePermiso(moduloId, accion) {
-  const campo = CAMPOS[accion];
   return async (req, res, next) => {
     try {
-      const permiso = await prisma.rolPermiso.findUnique({
-        where: { rol_moduloId: { rol: req.user.rol, moduloId } },
-      });
-      if (!permiso || !permiso[campo]) {
+      if (!(await tienePermiso(req.user.rol, moduloId, accion))) {
         return res.status(403).json({ error: 'No tienes permiso para realizar esta acción.' });
       }
       next();

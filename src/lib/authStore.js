@@ -40,6 +40,16 @@ export function puedeEliminar(moduloId) {
   return !!permisoDe(moduloId)?.puedeEliminar;
 }
 
+// Para decidir si el módulo aparece en la navegación / si la ruta es
+// accesible: alcanza con tener cualquier permiso (no necesariamente "ver"),
+// ya que algunos módulos (ej. Asistencia) muestran una vista distinta según
+// el nivel de acceso — con solo "crear" igual se entra, pero a una pantalla
+// de autoservicio en vez de la vista completa.
+export function tieneAcceso(moduloId) {
+  const p = permisoDe(moduloId);
+  return !!(p?.puedeVer || p?.puedeCrear || p?.puedeEditar || p?.puedeEliminar);
+}
+
 export async function login(email, password) {
   const { token, usuario, permisos } = await api('/auth/login', { method: 'POST', body: { email, password } });
   setToken(token);

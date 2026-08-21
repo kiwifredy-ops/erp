@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
-import { requirePermiso } from '../middleware/permisos.js';
+import { requirePermiso, tienePermiso } from '../middleware/permisos.js';
 
 export const asistenciaRouter = Router();
 asistenciaRouter.use(requireAuth);
@@ -25,13 +25,34 @@ function calcularEstado(entrada) {
   return entrada > HORA_ENTRADA_ESPERADA ? 'Atraso' : 'Normal';
 }
 
+// Vista completa (todos los empleados) — solo para quienes tienen el
+// permiso de "ver" en Asistencia (Administrador, RRHH, u otro rol al que
+// se le otorgue explícitamente desde Usuarios y Permisos).
 asistenciaRouter.get('/marcaciones', V, async (req, res) => {
   const marcaciones = await prisma.marcacion.findMany({ orderBy: { fecha: 'desc' } });
   res.json(marcaciones);
 });
 
+// Autoservicio: solo las marcaciones propias del usuario logueado, sin
+// necesitar el permiso de "ver todo". El nombre se toma de la sesión
+// (Usuario.nombre), no del cliente, para que nadie pueda consultar
+// marcaciones de otra persona por este camino.
+asistenciaRouter.get('/marcaciones/mias', C, async (req, res) => {
+  const marcaciones = await prisma.marcacion.findMany({
+    where: { empleado: req.user.nombre },
+    orderBy: { fecha: 'desc' },
+    take: 14,
+  });
+  res.json(marcaciones);
+});
+
 asistenciaRouter.post('/marcaciones/entrada', C, async (req, res) => {
-  const { empleado, fecha, hora, lat, lng } = req.body;
+  const { fecha, hora, lat, lng } = req.body;
+  // Solo quien puede "ver" todo el módulo (Administrador/RRHH) puede marcar
+  // a nombre de otro empleado; el resto solo puede marcar su propio ingreso.
+  const puedeVerTodo = await tienePermiso(req.user.rol, 'asistencia', 'ver');
+  const empleado = puedeVerTodo && req.body.empleado ? req.body.empleado : req.user.nombre;
+
   const marcacion = await prisma.marcacion.create({
     data: {
       empleado,
@@ -50,6 +71,12 @@ asistenciaRouter.post('/marcaciones/:id/salida', E, async (req, res) => {
   const before = await prisma.marcacion.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Marcación no encontrada' });
   if (before.horaSalida) return res.status(400).json({ error: 'Esta marcación ya tiene salida registrada' });
+
+  // Quien no puede "ver" todo el módulo solo puede cerrar su propia marcación.
+  const puedeVerTodo = await tienePermiso(req.user.rol, 'asistencia', 'ver');
+  if (!puedeVerTodo && before.empleado !== req.user.nombre) {
+    return res.status(403).json({ error: 'Solo puedes marcar tu propia salida.' });
+  }
 
   const horasTrabajadas = horasEntre(before.horaEntrada, hora);
   const marcacion = await prisma.marcacion.update({

@@ -15,7 +15,7 @@ import TicketsModule from './pages/modules/tickets/TicketsModule';
 import ClientesModule from './pages/modules/clientes/ClientesModule';
 import UsuariosModule from './pages/modules/usuarios/UsuariosModule';
 import { IMPLEMENTED_MODULES } from './lib/modules';
-import { puedeVer } from './lib/authStore';
+import { tieneAcceso } from './lib/authStore';
 
 const MODULE_COMPONENTS = {
   rrhh: RRHHModule,
@@ -44,7 +44,7 @@ function AccesoDenegado() {
 
 function ModuleRoute() {
   const { moduleId } = useParams();
-  if (!puedeVer(moduleId)) return <AccesoDenegado />;
+  if (!tieneAcceso(moduleId)) return <AccesoDenegado />;
   const Component = IMPLEMENTED_MODULES.includes(moduleId) ? MODULE_COMPONENTS[moduleId] : null;
   return Component ? <Component /> : <ModulePlaceholder />;
 }

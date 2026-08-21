@@ -6,6 +6,11 @@ export function getMarcaciones() {
   return api('/asistencia/marcaciones');
 }
 
+// Autoservicio: solo las marcaciones del usuario logueado.
+export function getMisMarcaciones() {
+  return api('/asistencia/marcaciones/mias');
+}
+
 export function marcarEntrada(empleado, fecha, hora, coords) {
   return api('/asistencia/marcaciones/entrada', { method: 'POST', body: { empleado, fecha, hora, lat: coords?.lat, lng: coords?.lng } });
 }

@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Clock } from 'lucide-react';
 import { MODULES, IMPLEMENTED_MODULES } from '../lib/modules';
 import { getEmpleados } from '../lib/rrhhStore';
-import { puedeVer } from '../lib/authStore';
+import { puedeVer, tieneAcceso } from '../lib/authStore';
 
 export default function Dashboard() {
   const [empleados, setEmpleados] = useState([]);
-  const visibles = MODULES.filter((m) => puedeVer(m.id));
+  const visibles = MODULES.filter((m) => tieneAcceso(m.id));
 
   useEffect(() => {
     if (!puedeVer('rrhh')) return;

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import MarcacionesTab from './MarcacionesTab';
 import ResumenTab from './ResumenTab';
+import MiAsistenciaTab from './MiAsistenciaTab';
+import { puedeVer } from '../../../lib/authStore';
 
 const TABS = [
   { id: 'marcaciones', label: 'Registro de Marcaciones' },
@@ -9,6 +11,21 @@ const TABS = [
 
 export default function AsistenciaModule() {
   const [tab, setTab] = useState('marcaciones');
+  const vistaCompleta = puedeVer('asistencia');
+
+  // Sin el permiso de "ver" el módulo completo, cada usuario solo puede
+  // marcar su propio ingreso y salida — no ve datos de nadie más.
+  if (!vistaCompleta) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Asistencia</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Marca tu entrada y salida del día.</p>
+        </div>
+        <MiAsistenciaTab />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
