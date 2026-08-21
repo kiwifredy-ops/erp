@@ -140,6 +140,12 @@ model Equipo {
   estado          String           @default("En bodega")
   fechaAsignacion DateTime?
   createdAt       DateTime         @default(now())
+
+  numeroSerie        String?
+  fechaCompra         DateTime?
+  mesesGarantia       Int?
+  clienteInstalacion  String?
+
   bitacora        EquipoBitacora[]
 }
 
