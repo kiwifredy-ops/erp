@@ -11,6 +11,7 @@ import {
   MEDIOS_PAGO,
   ESTADOS_FACTURA,
 } from '../../../lib/contabilidadStore';
+import { getClientes } from '../../../lib/clientesStore';
 
 const ESTADO_STYLES = {
   Pendiente: 'bg-amber-50 text-amber-700',
@@ -96,10 +97,21 @@ export default function FacturasVentaTab() {
 }
 
 function CreateFacturaModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({ cliente: '', fechaEmision: new Date().toISOString().slice(0, 10), fechaVencimiento: '', montoNeto: '' });
+  const [clientes, setClientes] = useState([]);
+  const [form, setForm] = useState({ clienteId: '', cliente: '', fechaEmision: new Date().toISOString().slice(0, 10), fechaVencimiento: '', montoNeto: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
+
+  useEffect(() => {
+    getClientes().then((cs) => setClientes(cs.filter((c) => c.activo)));
+  }, []);
+
+  function handlePickCliente(id) {
+    const c = clientes.find((x) => x.id === id);
+    set('clienteId', id);
+    if (c) set('cliente', c.nombre);
+  }
 
   const neto = Number(form.montoNeto) || 0;
   const iva = Math.round(neto * 0.19);
@@ -109,7 +121,7 @@ function CreateFacturaModal({ onClose, onCreated }) {
     setError('');
     setSaving(true);
     try {
-      await crearFacturaVenta(form);
+      await crearFacturaVenta({ ...form, clienteId: form.clienteId || null });
       onCreated();
     } catch (err) {
       setError(err.message || 'No se pudo registrar la factura.');
@@ -126,6 +138,15 @@ function CreateFacturaModal({ onClose, onCreated }) {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="w-4.5 h-4.5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
+          {clientes.length > 0 && (
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Cliente registrado (opcional)</span>
+              <select value={form.clienteId} onChange={(e) => handlePickCliente(e.target.value)} className="input">
+                <option value="">Sin seleccionar — escribir manualmente</option>
+                {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1">Cliente</span>
             <input required value={form.cliente} onChange={(e) => set('cliente', e.target.value)} className="input" />

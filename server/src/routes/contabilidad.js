@@ -7,6 +7,13 @@ contabilidadRouter.use(requireAuth);
 
 const IVA_TASA = 0.19;
 
+const FV_INCLUDE = {
+  pagos: { orderBy: { fecha: 'asc' } },
+  notasCredito: { orderBy: { fecha: 'asc' } },
+  bitacora: { orderBy: { fecha: 'asc' } },
+  clienteRef: { select: { id: true, nombre: true, telefono: true, email: true } },
+};
+
 function diasHasta(fecha) {
   const ms = new Date(fecha).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0);
   return Math.round(ms / 86400000);
@@ -62,14 +69,14 @@ async function nextFolio(model, prefix) {
 
 contabilidadRouter.get('/facturas-venta', async (req, res) => {
   const facturas = await prisma.facturaVenta.findMany({
-    include: { pagos: { orderBy: { fecha: 'asc' } }, notasCredito: { orderBy: { fecha: 'asc' } }, bitacora: { orderBy: { fecha: 'asc' } } },
+    include: FV_INCLUDE,
     orderBy: { createdAt: 'desc' },
   });
   res.json(facturas.map((f) => ({ ...f, saldoPendiente: saldoPendiente(f), diasParaVencer: diasHasta(f.fechaVencimiento) })));
 });
 
 contabilidadRouter.post('/facturas-venta', async (req, res) => {
-  const { cliente, fechaEmision, fechaVencimiento, montoNeto } = req.body;
+  const { cliente, clienteId, fechaEmision, fechaVencimiento, montoNeto } = req.body;
   const neto = Number(montoNeto);
   const iva = Math.round(neto * IVA_TASA);
   const folio = await nextFolio(prisma.facturaVenta, 'FV');
@@ -78,6 +85,7 @@ contabilidadRouter.post('/facturas-venta', async (req, res) => {
     data: {
       folio,
       cliente,
+      clienteId: clienteId || null,
       fechaEmision: new Date(fechaEmision),
       fechaVencimiento: new Date(fechaVencimiento),
       montoNeto: neto,
@@ -85,7 +93,7 @@ contabilidadRouter.post('/facturas-venta', async (req, res) => {
       montoTotal: neto + iva,
       bitacora: { create: [{ fecha: new Date(fechaEmision), evento: 'Factura emitida', detalle: `Emitida a ${cliente}.` }] },
     },
-    include: { pagos: true, notasCredito: true, bitacora: true },
+    include: FV_INCLUDE,
   });
   res.status(201).json({ ...factura, saldoPendiente: saldoPendiente(factura), diasParaVencer: diasHasta(factura.fechaVencimiento) });
 });
@@ -114,7 +122,7 @@ contabilidadRouter.post('/facturas-venta/:id/pago', async (req, res) => {
       estado: pendiente <= 0 ? 'Pagada' : 'Pendiente',
       bitacora: { create: [{ fecha: new Date(fecha), evento: 'Pago recibido', detalle: `${medioPago}: ${montoPago}` }] },
     },
-    include: { pagos: { orderBy: { fecha: 'asc' } }, notasCredito: { orderBy: { fecha: 'asc' } }, bitacora: { orderBy: { fecha: 'asc' } } },
+    include: FV_INCLUDE,
   });
   res.json({ ...factura2, saldoPendiente: saldoPendiente(factura2), diasParaVencer: diasHasta(factura2.fechaVencimiento) });
 });
@@ -129,7 +137,7 @@ contabilidadRouter.post('/facturas-venta/:id/notas-credito', async (req, res) =>
   const factura2 = await prisma.facturaVenta.update({
     where: { id: req.params.id },
     data: { bitacora: { create: [{ fecha: new Date(fecha), evento: 'Nota de crédito emitida', detalle: `${folio}: ${motivo} (${monto})` }] } },
-    include: { pagos: { orderBy: { fecha: 'asc' } }, notasCredito: { orderBy: { fecha: 'asc' } }, bitacora: { orderBy: { fecha: 'asc' } } },
+    include: FV_INCLUDE,
   });
   res.status(201).json({ ...factura2, saldoPendiente: saldoPendiente(factura2), diasParaVencer: diasHasta(factura2.fechaVencimiento) });
 });
@@ -138,7 +146,7 @@ contabilidadRouter.post('/facturas-venta/:id/anular', async (req, res) => {
   const factura = await prisma.facturaVenta.update({
     where: { id: req.params.id },
     data: { estado: 'Anulada', bitacora: { create: [{ fecha: new Date(), evento: 'Factura anulada', detalle: req.body.motivo || '—' }] } },
-    include: { pagos: { orderBy: { fecha: 'asc' } }, notasCredito: { orderBy: { fecha: 'asc' } }, bitacora: { orderBy: { fecha: 'asc' } } },
+    include: FV_INCLUDE,
   });
   res.json({ ...factura, saldoPendiente: saldoPendiente(factura), diasParaVencer: diasHasta(factura.fechaVencimiento) });
 });

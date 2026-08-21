@@ -1,19 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { crearTicket, PRIORIDADES } from '../../../lib/ticketsStore';
+import { getClientes } from '../../../lib/clientesStore';
 
 export default function CreateTicketModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({ cliente: '', direccion: '', descripcion: '', prioridad: 'Media' });
+  const [clientes, setClientes] = useState([]);
+  const [form, setForm] = useState({ clienteId: '', cliente: '', direccion: '', descripcion: '', prioridad: 'Media' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
+
+  useEffect(() => {
+    getClientes().then((cs) => setClientes(cs.filter((c) => c.activo)));
+  }, []);
+
+  function handlePickCliente(id) {
+    const c = clientes.find((x) => x.id === id);
+    set('clienteId', id);
+    if (c) {
+      set('cliente', c.nombre);
+      set('direccion', [c.direccion, c.comuna].filter(Boolean).join(', '));
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setSaving(true);
     try {
-      await crearTicket(form);
+      await crearTicket({ ...form, clienteId: form.clienteId || null });
       onCreated();
     } catch (err) {
       setError(err.message || 'No se pudo crear el ticket.');
@@ -30,6 +45,15 @@ export default function CreateTicketModal({ onClose, onCreated }) {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="w-4.5 h-4.5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
+          {clientes.length > 0 && (
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Cliente registrado (opcional)</span>
+              <select value={form.clienteId} onChange={(e) => handlePickCliente(e.target.value)} className="input">
+                <option value="">Sin seleccionar — escribir manualmente</option>
+                {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1">Cliente</span>
             <input required value={form.cliente} onChange={(e) => set('cliente', e.target.value)} className="input" />

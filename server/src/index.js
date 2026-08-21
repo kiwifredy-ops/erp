@@ -10,6 +10,7 @@ import { flotaRouter } from './routes/flota.js';
 import { abastecimientoRouter } from './routes/abastecimiento.js';
 import { contabilidadRouter } from './routes/contabilidad.js';
 import { ticketsRouter } from './routes/tickets.js';
+import { clientesRouter } from './routes/clientes.js';
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/flota', flotaRouter);
 app.use('/api/abastecimiento', abastecimientoRouter);
 app.use('/api/contabilidad', contabilidadRouter);
 app.use('/api/tickets', ticketsRouter);
+app.use('/api/clientes', clientesRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);

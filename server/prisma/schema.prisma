@@ -344,6 +344,8 @@ model FacturaVenta {
   id               String   @id @default(cuid())
   folio            String   @unique
   cliente          String
+  clienteId        String?
+  clienteRef       Cliente? @relation(fields: [clienteId], references: [id])
   fechaEmision     DateTime
   fechaVencimiento DateTime
   montoNeto        Int
@@ -356,6 +358,8 @@ model FacturaVenta {
   pagos        PagoCliente[]
   notasCredito NotaCreditoVenta[]
   bitacora     FacturaVentaBitacora[]
+
+  @@index([clienteId])
 }
 
 model PagoCliente {
@@ -462,6 +466,8 @@ model Ticket {
   id          String   @id @default(cuid())
   folio       String   @unique
   cliente     String
+  clienteId   String?
+  clienteRef  Cliente? @relation(fields: [clienteId], references: [id])
   direccion   String
   descripcion String   @db.Text
   prioridad   String   @default("Media") // Baja | Media | Alta | Urgente
@@ -483,6 +489,8 @@ model Ticket {
   bitacora TicketBitacora[]
   archivos TicketArchivo[]
   encuesta EncuestaSatisfaccion?
+
+  @@index([clienteId])
 }
 
 model TicketBitacora {
@@ -516,4 +524,32 @@ model EncuestaSatisfaccion {
   calificacion Int // 1-5
   comentario   String?  @db.Text
   fecha        DateTime @default(now())
+}
+
+// --- Clientes --------------------------------------------------------------
+//
+// Base de clientes de la empresa. Se puede vincular opcionalmente desde
+// Tickets y Facturas de Venta (clienteId) — el nombre en texto libre de esos
+// registros se mantiene igual como respaldo/histórico, así que no es
+// obligatorio tener al cliente registrado aquí para operar en esos módulos.
+
+model Cliente {
+  id              String   @id @default(cuid())
+  tipo            String   @default("Empresa") // Empresa | Persona
+  nombre          String
+  rut             String?  @unique
+  direccion       String?
+  comuna          String?
+  ciudad          String?
+  telefono        String?
+  email           String?
+  contactoNombre  String?
+  contactoCargo   String?
+  contactoTelefono String?
+  notas           String?  @db.Text
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  tickets       Ticket[]
+  facturasVenta FacturaVenta[]
 }

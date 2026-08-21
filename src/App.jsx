@@ -11,6 +11,7 @@ import FlotaModule from './pages/modules/flota/FlotaModule';
 import AbastecimientoModule from './pages/modules/abastecimiento/AbastecimientoModule';
 import ContabilidadModule from './pages/modules/contabilidad/ContabilidadModule';
 import TicketsModule from './pages/modules/tickets/TicketsModule';
+import ClientesModule from './pages/modules/clientes/ClientesModule';
 import { IMPLEMENTED_MODULES } from './lib/modules';
 
 const MODULE_COMPONENTS = {
@@ -22,6 +23,7 @@ const MODULE_COMPONENTS = {
   abastecimiento: AbastecimientoModule,
   contabilidad: ContabilidadModule,
   tickets: TicketsModule,
+  clientes: ClientesModule,
 };
 
 function ModuleRoute() {

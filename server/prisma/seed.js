@@ -172,7 +172,64 @@ async function seedAbastecimiento() {
   });
 }
 
-async function seedContabilidad() {
+async function seedClientes() {
+  const existing = await prisma.cliente.count();
+  if (existing > 0) {
+    const clientes = await prisma.cliente.findMany();
+    return Object.fromEntries(clientes.map((c) => [c.nombre, c.id]));
+  }
+
+  const clientes = [
+    {
+      tipo: 'Empresa',
+      nombre: 'Constructora Los Andes SpA',
+      rut: '76.123.456-7',
+      direccion: 'Av. Apoquindo 4500',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      telefono: '+56 2 2345 1001',
+      email: 'contacto@losandes.cl',
+      contactoNombre: 'Jorge Muñoz',
+      contactoCargo: 'Jefe de Mantenimiento',
+      contactoTelefono: '+56 9 8765 1001',
+    },
+    {
+      tipo: 'Empresa',
+      nombre: 'Retail Sur S.A.',
+      rut: '77.234.567-8',
+      direccion: 'Camino a Melipilla 8200',
+      comuna: 'Maipú',
+      ciudad: 'Santiago',
+      telefono: '+56 2 2345 1002',
+      email: 'seguridad@retailsur.cl',
+      contactoNombre: 'Paula Iturra',
+      contactoCargo: 'Encargada de Seguridad',
+      contactoTelefono: '+56 9 8765 1002',
+    },
+    {
+      tipo: 'Empresa',
+      nombre: 'Municipalidad de Providencia',
+      rut: '69.070.100-1',
+      direccion: 'Av. 11 de Septiembre 2110',
+      comuna: 'Providencia',
+      ciudad: 'Santiago',
+      telefono: '+56 2 2345 1003',
+      email: 'operaciones@providencia.cl',
+      contactoNombre: 'Ricardo Sáez',
+      contactoCargo: 'Coordinador de Operaciones',
+      contactoTelefono: '+56 9 8765 1003',
+    },
+  ];
+
+  const map = {};
+  for (const c of clientes) {
+    const created = await prisma.cliente.create({ data: c });
+    map[c.nombre] = created.id;
+  }
+  return map;
+}
+
+async function seedContabilidad(clienteIds) {
   const existingCuentas = await prisma.cuentaBancaria.count();
   if (existingCuentas > 0) return;
 
@@ -203,6 +260,7 @@ async function seedContabilidad() {
       data: {
         folio: `FV${String(nV++).padStart(4, '0')}`,
         cliente: v.cliente,
+        clienteId: clienteIds[v.cliente] ?? null,
         fechaEmision: new Date(v.fechaEmision),
         fechaVencimiento: new Date(v.fechaVencimiento),
         montoNeto: neto,
@@ -254,7 +312,7 @@ async function seedContabilidad() {
   }
 }
 
-async function seedTickets() {
+async function seedTickets(clienteIds) {
   const existing = await prisma.ticket.count();
   if (existing > 0) return;
 
@@ -289,6 +347,7 @@ async function seedTickets() {
       data: {
         folio: `TK${String(n++).padStart(4, '0')}`,
         cliente: t.cliente,
+        clienteId: clienteIds[t.cliente] ?? null,
         direccion: t.direccion,
         descripcion: t.descripcion,
         prioridad: t.prioridad,
@@ -313,8 +372,9 @@ async function main() {
   await seedAsistencia();
   await seedFlota();
   await seedAbastecimiento();
-  await seedContabilidad();
-  await seedTickets();
+  const clienteIds = await seedClientes();
+  await seedContabilidad(clienteIds);
+  await seedTickets(clienteIds);
   console.log(`Seed completo. Usuarios demo, contraseña: ${DEMO_PASSWORD}`);
 }
 

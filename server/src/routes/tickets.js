@@ -18,6 +18,7 @@ const INCLUDE = {
   bitacora: { orderBy: { fecha: 'asc' } },
   archivos: { select: { id: true, tipo: true, nombreArchivo: true, mimeType: true, fechaSubida: true } },
   encuesta: true,
+  clienteRef: { select: { id: true, nombre: true, telefono: true, email: true } },
 };
 
 async function nextFolio() {
@@ -31,12 +32,13 @@ ticketsRouter.get('/', async (req, res) => {
 });
 
 ticketsRouter.post('/', async (req, res) => {
-  const { cliente, direccion, descripcion, prioridad } = req.body;
+  const { cliente, clienteId, direccion, descripcion, prioridad } = req.body;
   const folio = await nextFolio();
   const ticket = await prisma.ticket.create({
     data: {
       folio,
       cliente,
+      clienteId: clienteId || null,
       direccion,
       descripcion,
       prioridad: prioridad || 'Media',

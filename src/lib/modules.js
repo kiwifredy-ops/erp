@@ -1,4 +1,4 @@
-import { Users, Warehouse, Receipt, Fingerprint, Truck, PackageSearch, Landmark, Ticket } from 'lucide-react';
+import { Users, Warehouse, Receipt, Fingerprint, Truck, PackageSearch, Landmark, Ticket, BookUser } from 'lucide-react';
 
 export const MODULES = [
   {
@@ -49,12 +49,18 @@ export const MODULES = [
     descripcion: 'Mesa de ayuda, técnicos en terreno con GPS, fotos/video, firma y encuesta del cliente.',
     icon: Ticket,
   },
+  {
+    id: 'clientes',
+    nombre: 'Clientes',
+    descripcion: 'Base de clientes, vinculada a tickets de servicio y facturas de venta.',
+    icon: BookUser,
+  },
 ];
 
 // Modules with a real, interactive implementation. The rest render as
 // "próximamente" placeholders until built (build proceeds one module at a
 // time, with a check-in before moving to the next).
-export const IMPLEMENTED_MODULES = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets'];
+export const IMPLEMENTED_MODULES = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes'];
 
 export function getModule(id) {
   return MODULES.find((m) => m.id === id);
