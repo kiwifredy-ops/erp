@@ -23,6 +23,7 @@ export default function ResumenTab() {
             <th className="text-left font-medium px-4 py-2.5">Atrasos</th>
             <th className="text-left font-medium px-4 py-2.5">Ausencias</th>
             <th className="text-left font-medium px-4 py-2.5">Horas totales</th>
+            <th className="text-left font-medium px-4 py-2.5">Horas extra</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -37,6 +38,9 @@ export default function ResumenTab() {
                 {r.ausencias > 0 ? <span className="text-red-600 font-medium">{r.ausencias}</span> : <span className="text-slate-400">0</span>}
               </td>
               <td className="px-4 py-2.5 text-slate-600">{r.horasTotales.toFixed(1)} h</td>
+              <td className="px-4 py-2.5">
+                {r.horasExtraTotales > 0 ? <span className="text-amber-600 font-medium">{r.horasExtraTotales.toFixed(1)} h</span> : <span className="text-slate-400">0 h</span>}
+              </td>
             </tr>
           ))}
         </tbody>

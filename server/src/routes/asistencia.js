@@ -6,6 +6,7 @@ export const asistenciaRouter = Router();
 asistenciaRouter.use(requireAuth);
 
 const HORA_ENTRADA_ESPERADA = '08:30';
+const JORNADA_NORMAL_HORAS = 9;
 
 function horasEntre(entrada, salida) {
   if (!entrada || !salida) return 0;
@@ -24,32 +25,52 @@ asistenciaRouter.get('/marcaciones', async (req, res) => {
   res.json(marcaciones);
 });
 
-asistenciaRouter.post('/marcaciones', async (req, res) => {
-  const { empleado, fecha, horaEntrada } = req.body;
-  const horaSalida = horaEntrada ? '18:00' : null;
+asistenciaRouter.post('/marcaciones/entrada', async (req, res) => {
+  const { empleado, fecha, hora, lat, lng } = req.body;
   const marcacion = await prisma.marcacion.create({
     data: {
       empleado,
       fecha: new Date(fecha),
-      horaEntrada,
-      horaSalida,
-      estado: calcularEstado(horaEntrada),
-      horasTrabajadas: horasEntre(horaEntrada, horaSalida),
+      horaEntrada: hora,
+      estado: calcularEstado(hora),
+      latEntrada: lat ?? null,
+      lngEntrada: lng ?? null,
     },
   });
   res.status(201).json(marcacion);
+});
+
+asistenciaRouter.post('/marcaciones/:id/salida', async (req, res) => {
+  const { hora, lat, lng } = req.body;
+  const before = await prisma.marcacion.findUnique({ where: { id: req.params.id } });
+  if (!before) return res.status(404).json({ error: 'Marcación no encontrada' });
+  if (before.horaSalida) return res.status(400).json({ error: 'Esta marcación ya tiene salida registrada' });
+
+  const horasTrabajadas = horasEntre(before.horaEntrada, hora);
+  const marcacion = await prisma.marcacion.update({
+    where: { id: req.params.id },
+    data: {
+      horaSalida: hora,
+      horasTrabajadas,
+      horasExtra: Math.max(0, +(horasTrabajadas - JORNADA_NORMAL_HORAS).toFixed(1)),
+      latSalida: lat ?? null,
+      lngSalida: lng ?? null,
+    },
+  });
+  res.json(marcacion);
 });
 
 asistenciaRouter.get('/resumen', async (req, res) => {
   const marcaciones = await prisma.marcacion.findMany();
   const porEmpleado = {};
   for (const m of marcaciones) {
-    porEmpleado[m.empleado] ??= { empleado: m.empleado, diasRegistrados: 0, atrasos: 0, ausencias: 0, horasTotales: 0 };
+    porEmpleado[m.empleado] ??= { empleado: m.empleado, diasRegistrados: 0, atrasos: 0, ausencias: 0, horasTotales: 0, horasExtraTotales: 0 };
     const r = porEmpleado[m.empleado];
     r.diasRegistrados += 1;
     if (m.estado === 'Atraso') r.atrasos += 1;
     if (m.estado === 'Ausencia') r.ausencias += 1;
     r.horasTotales += m.horasTrabajadas;
+    r.horasExtraTotales += m.horasExtra;
   }
   res.json(Object.values(porEmpleado).sort((a, b) => a.empleado.localeCompare(b.empleado)));
 });

@@ -213,7 +213,15 @@ model Marcacion {
   horaSalida      String?
   estado          String
   horasTrabajadas Float    @default(0)
+  horasExtra      Float    @default(0)
   createdAt       DateTime @default(now())
+
+  // Geolocalización de la marcación (estilo GeoVictoria) — coordenadas al
+  // marcar entrada y, por separado, al marcar salida.
+  latEntrada    Float?
+  lngEntrada    Float?
+  latSalida     Float?
+  lngSalida     Float?
 }
 
 // --- Flota de Vehículos -----------------------------------------------------
