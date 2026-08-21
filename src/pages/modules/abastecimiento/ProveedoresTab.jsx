@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Building2 } from 'lucide-react';
+import { Plus, X, Building2, Star } from 'lucide-react';
 import { getProveedores, crearProveedor, toggleProveedorActivo, RUBROS_PROVEEDOR } from '../../../lib/abastecimientoStore';
 
 export default function ProveedoresTab() {
@@ -34,6 +34,7 @@ export default function ProveedoresTab() {
               <th className="text-left font-medium px-4 py-2.5">Proveedor</th>
               <th className="text-left font-medium px-4 py-2.5">Rubro</th>
               <th className="text-left font-medium px-4 py-2.5">Contacto</th>
+              <th className="text-left font-medium px-4 py-2.5">Calificación</th>
               <th className="text-left font-medium px-4 py-2.5">Estado</th>
               <th className="text-left font-medium px-4 py-2.5"></th>
             </tr>
@@ -44,6 +45,16 @@ export default function ProveedoresTab() {
                 <td className="px-4 py-2.5 font-medium text-slate-800 flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-slate-400" /> {p.nombre}</td>
                 <td className="px-4 py-2.5 text-slate-600">{p.rubro}</td>
                 <td className="px-4 py-2.5 text-slate-600">{p.contacto} · {p.telefono}</td>
+                <td className="px-4 py-2.5">
+                  {p.calificacionPromedio ? (
+                    <span className="flex items-center gap-1 text-slate-600">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      {p.calificacionPromedio.toFixed(1)} <span className="text-xs text-slate-400">({p.ordenesCalificadas})</span>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">Sin calificar</span>
+                  )}
+                </td>
                 <td className="px-4 py-2.5">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                     {p.activo ? 'Activo' : 'Inactivo'}

@@ -23,6 +23,10 @@ export function getProveedores() {
   return api('/abastecimiento/proveedores');
 }
 
+export function getAlertasOrdenes() {
+  return api('/abastecimiento/ordenes/alertas');
+}
+
 export function crearProveedor(data) {
   return api('/abastecimiento/proveedores', { method: 'POST', body: data });
 }
@@ -39,6 +43,23 @@ export function crearOrden(data) {
   return api('/abastecimiento/ordenes', { method: 'POST', body: data });
 }
 
-export function cambiarEstadoOrden(id, estado, motivo) {
-  return api(`/abastecimiento/ordenes/${id}/estado`, { method: 'POST', body: { estado, motivo } });
+export function cambiarEstadoOrden(id, estado, motivo, calificacion) {
+  return api(`/abastecimiento/ordenes/${id}/estado`, { method: 'POST', body: { estado, motivo, calificacion } });
+}
+
+export function subirDocumentoOrden(id, data) {
+  return api(`/abastecimiento/ordenes/${id}/documento`, { method: 'POST', body: data });
+}
+
+export function getDocumentoOrden(id) {
+  return api(`/abastecimiento/ordenes/${id}/documento`);
+}
+
+export function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }

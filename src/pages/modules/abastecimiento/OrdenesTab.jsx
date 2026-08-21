@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Trash2, History, Package } from 'lucide-react';
-import { getOrdenes, getTotalOrden, crearOrden, cambiarEstadoOrden, getNextEstados, getProveedores, ESTADOS_ORDEN } from '../../../lib/abastecimientoStore';
+import { Plus, X, Trash2, History, Package, Star, Paperclip, Upload } from 'lucide-react';
+import { getOrdenes, getTotalOrden, crearOrden, cambiarEstadoOrden, getNextEstados, getProveedores, subirDocumentoOrden, getDocumentoOrden, fileToBase64, ESTADOS_ORDEN } from '../../../lib/abastecimientoStore';
+import AlertasOrdenesBanner from './AlertasOrdenesBanner';
 
 const ESTADO_STYLES = {
   Solicitada: 'bg-slate-100 text-slate-600',
@@ -33,6 +34,8 @@ export default function OrdenesTab() {
 
   return (
     <div className="space-y-4">
+      <AlertasOrdenesBanner refreshKey={ordenes} onSelect={setSelectedId} />
+
       <div className="flex flex-wrap items-center gap-2">
         <select value={estado} onChange={(e) => setEstado(e.target.value)} className="text-sm border border-slate-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
           <option value="">Todos los estados</option>
@@ -88,6 +91,7 @@ const emptyItem = () => ({ descripcion: '', cantidad: 1, precioUnitario: '' });
 
 function CreateOrdenModal({ proveedores, onClose, onCreated }) {
   const [proveedor, setProveedor] = useState(proveedores[0]?.nombre ?? '');
+  const [fechaEntregaEstimada, setFechaEntregaEstimada] = useState('');
   const [items, setItems] = useState([emptyItem()]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -105,7 +109,7 @@ function CreateOrdenModal({ proveedores, onClose, onCreated }) {
     setError('');
     setSaving(true);
     try {
-      await crearOrden({ proveedor, fecha: new Date().toISOString().slice(0, 10), items: validItems });
+      await crearOrden({ proveedor, fecha: new Date().toISOString().slice(0, 10), fechaEntregaEstimada: fechaEntregaEstimada || null, items: validItems });
       onCreated();
     } catch (err) {
       setError(err.message || 'No se pudo crear la orden.');
@@ -122,12 +126,18 @@ function CreateOrdenModal({ proveedores, onClose, onCreated }) {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="w-4.5 h-4.5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <label className="block">
-            <span className="block text-xs font-medium text-slate-600 mb-1">Proveedor</span>
-            <select value={proveedor} onChange={(e) => setProveedor(e.target.value)} className="input">
-              {proveedores.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
-            </select>
-          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Proveedor</span>
+              <select value={proveedor} onChange={(e) => setProveedor(e.target.value)} className="input">
+                {proveedores.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Entrega estimada</span>
+              <input type="date" value={fechaEntregaEstimada} onChange={(e) => setFechaEntregaEstimada(e.target.value)} className="input" />
+            </label>
+          </div>
 
           <div className="space-y-3">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Ítems</p>
@@ -164,24 +174,65 @@ function CreateOrdenModal({ proveedores, onClose, onCreated }) {
 function OrdenDrawer({ orden, onClose, onChanged }) {
   const [nuevoEstado, setNuevoEstado] = useState('');
   const [motivo, setMotivo] = useState('');
+  const [calificacion, setCalificacion] = useState(0);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState(false);
   const nextEstados = getNextEstados(orden.estado);
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!nuevoEstado) return;
+    if (nuevoEstado === 'Recibida' && !calificacion) {
+      setError('Debes calificar al proveedor (1 a 5 estrellas) para marcar la orden como recibida.');
+      return;
+    }
     setError('');
     setSaving(true);
     try {
-      await cambiarEstadoOrden(orden.id, nuevoEstado, motivo);
+      await cambiarEstadoOrden(orden.id, nuevoEstado, motivo, calificacion || undefined);
       setNuevoEstado('');
       setMotivo('');
+      setCalificacion(0);
       onChanged();
     } catch (err) {
       setError(err.message || 'No se pudo actualizar el estado.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError('');
+    setSaving(true);
+    try {
+      const contenido = await fileToBase64(file);
+      await subirDocumentoOrden(orden.id, { nombreArchivo: file.name, mimeType: file.type || 'application/octet-stream', contenido });
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo subir el documento.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleVerDocumento() {
+    setViewingDoc(true);
+    try {
+      const doc = await getDocumentoOrden(orden.id);
+      const win = window.open();
+      if (win) {
+        if (doc.mimeType?.startsWith('image/')) {
+          win.document.write(`<title>${doc.nombreArchivo}</title><img src="${doc.contenido}" style="max-width:100%" />`);
+        } else {
+          win.location.href = doc.contenido;
+        }
+      }
+    } finally {
+      setViewingDoc(false);
     }
   }
 
@@ -202,6 +253,19 @@ function OrdenDrawer({ orden, onClose, onChanged }) {
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ESTADO_STYLES[orden.estado] ?? ''}`}>{orden.estado}</span>
             <span className="text-sm font-semibold text-slate-800">{formatCLP(getTotalOrden(orden))}</span>
           </div>
+
+          {orden.fechaEntregaEstimada && (
+            <p className="text-xs text-slate-500">Entrega estimada: {new Date(orden.fechaEntregaEstimada).toISOString().slice(0, 10)}</p>
+          )}
+
+          {orden.calificacionProveedor && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Calificación del proveedor:</span>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Star key={n} className={`w-3.5 h-3.5 ${n <= orden.calificacionProveedor ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+              ))}
+            </div>
+          )}
 
           <div>
             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
@@ -227,11 +291,38 @@ function OrdenDrawer({ orden, onClose, onChanged }) {
                 <option value="">Seleccionar nuevo estado...</option>
                 {nextEstados.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
+              {nuevoEstado === 'Recibida' && (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-slate-500 mr-1">Calificación del proveedor:</span>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button key={n} type="button" onClick={() => setCalificacion(n)}>
+                      <Star className={`w-4 h-4 ${n <= calificacion ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+                    </button>
+                  ))}
+                </div>
+              )}
               <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Observación (opcional)" className="input" />
               {error && <p className="text-xs text-red-600">{error}</p>}
               <button type="submit" disabled={!nuevoEstado || saving} className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-md py-2">{saving ? 'Guardando...' : 'Confirmar'}</button>
             </form>
           )}
+
+          <div className="space-y-2">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+              <Paperclip className="w-3.5 h-3.5" /> Factura / guía de despacho
+            </p>
+            {orden.documentoNombre ? (
+              <button onClick={handleVerDocumento} disabled={viewingDoc} className="text-xs text-sky-700 hover:underline">
+                Ver: {orden.documentoNombre}
+              </button>
+            ) : (
+              <label className="flex items-center justify-center gap-1.5 border border-dashed border-slate-300 rounded-md py-2 text-xs text-slate-500 hover:border-sky-400 hover:text-sky-700 cursor-pointer">
+                <Upload className="w-3.5 h-3.5" />
+                {saving ? 'Subiendo...' : 'Adjuntar documento'}
+                <input type="file" accept="image/*,application/pdf" onChange={handleFile} disabled={saving} className="hidden" />
+              </label>
+            )}
+          </div>
 
           <div>
             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">

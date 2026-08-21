@@ -276,6 +276,15 @@ model OrdenCompra {
   fecha     DateTime
   estado    String                @default("Solicitada")
   createdAt DateTime              @default(now())
+
+  fechaEntregaEstimada DateTime?
+  calificacionProveedor Int? // 1-5, registrada al marcar la orden como Recibida
+
+  // Factura o guía de despacho adjunta, como base64.
+  documentoNombre    String?
+  documentoMimeType  String?
+  documentoContenido String?  @db.LongText
+
   items     OrdenCompraItem[]
   bitacora  OrdenCompraBitacora[]
 }
