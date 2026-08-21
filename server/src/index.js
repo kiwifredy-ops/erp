@@ -9,13 +9,14 @@ import { asistenciaRouter } from './routes/asistencia.js';
 import { flotaRouter } from './routes/flota.js';
 import { abastecimientoRouter } from './routes/abastecimiento.js';
 import { contabilidadRouter } from './routes/contabilidad.js';
+import { ticketsRouter } from './routes/tickets.js';
 
 const app = express();
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true }));
-// límite alto: documentos e imágenes (contrato, cédula, licencia) se suben como base64
-app.use(express.json({ limit: '15mb' }));
+// límite alto: documentos, fotos y video corto de tickets se suben como base64
+app.use(express.json({ limit: '30mb' }));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -27,6 +28,7 @@ app.use('/api/asistencia', asistenciaRouter);
 app.use('/api/flota', flotaRouter);
 app.use('/api/abastecimiento', abastecimientoRouter);
 app.use('/api/contabilidad', contabilidadRouter);
+app.use('/api/tickets', ticketsRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);

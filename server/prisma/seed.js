@@ -254,6 +254,57 @@ async function seedContabilidad() {
   }
 }
 
+async function seedTickets() {
+  const existing = await prisma.ticket.count();
+  if (existing > 0) return;
+
+  const tickets = [
+    {
+      cliente: 'Constructora Los Andes SpA',
+      direccion: 'Av. Apoquindo 4500, Las Condes',
+      descripcion: 'Instalación de 6 cámaras domo IP en perímetro de bodega.',
+      prioridad: 'Alta',
+      tecnico: 'Pablo Contreras',
+      estado: 'Asignado',
+    },
+    {
+      cliente: 'Retail Sur S.A.',
+      direccion: 'Camino a Melipilla 8200, Maipú',
+      descripcion: 'Falla en central de alarma, sensor zona 3 no responde.',
+      prioridad: 'Urgente',
+      estado: 'Abierto',
+    },
+    {
+      cliente: 'Municipalidad de Providencia',
+      direccion: 'Av. 11 de Septiembre 2110, Providencia',
+      descripcion: 'Mantención preventiva semestral de sistema de control de acceso.',
+      prioridad: 'Media',
+      estado: 'Abierto',
+    },
+  ];
+
+  let n = 1;
+  for (const t of tickets) {
+    await prisma.ticket.create({
+      data: {
+        folio: `TK${String(n++).padStart(4, '0')}`,
+        cliente: t.cliente,
+        direccion: t.direccion,
+        descripcion: t.descripcion,
+        prioridad: t.prioridad,
+        tecnico: t.tecnico || null,
+        estado: t.estado,
+        bitacora: {
+          create: [
+            { fecha: new Date('2026-08-15'), evento: 'Ticket creado', detalle: `Solicitado por ${t.cliente}.` },
+            ...(t.tecnico ? [{ fecha: new Date('2026-08-16'), evento: 'Ticket asignado', detalle: `Asignado a ${t.tecnico}.` }] : []),
+          ],
+        },
+      },
+    });
+  }
+}
+
 async function main() {
   await seedUsuarios();
   await seedEmpleados();
@@ -263,6 +314,7 @@ async function main() {
   await seedFlota();
   await seedAbastecimiento();
   await seedContabilidad();
+  await seedTickets();
   console.log(`Seed completo. Usuarios demo, contraseña: ${DEMO_PASSWORD}`);
 }
 

@@ -449,3 +449,71 @@ model FacturaCompraBitacora {
 
   @@index([facturaId])
 }
+
+// --- Tickets de Servicio Técnico ------------------------------------------
+//
+// Mesa de ayuda crea y asigna el ticket a un técnico. El técnico, desde una
+// tablet en terreno, inicia el servicio (queda registrada su ubicación GPS),
+// adjunta fotos/video, escribe observaciones y finaliza (segunda ubicación
+// GPS). Al cierre, el cliente firma en pantalla y responde una encuesta de
+// satisfacción breve.
+
+model Ticket {
+  id          String   @id @default(cuid())
+  folio       String   @unique
+  cliente     String
+  direccion   String
+  descripcion String   @db.Text
+  prioridad   String   @default("Media") // Baja | Media | Alta | Urgente
+  tecnico     String?
+  estado      String   @default("Abierto") // Abierto | Asignado | En curso | Completado | Cerrado | Cancelado
+  createdAt   DateTime @default(now())
+
+  fechaInicio DateTime?
+  latInicio   Float?
+  lngInicio   Float?
+
+  fechaFin       DateTime?
+  latFin         Float?
+  lngFin         Float?
+  observaciones  String?   @db.Text
+
+  firmaCliente String? @db.LongText // PNG capturado en un canvas, como base64
+
+  bitacora TicketBitacora[]
+  archivos TicketArchivo[]
+  encuesta EncuestaSatisfaccion?
+}
+
+model TicketBitacora {
+  id       String   @id @default(cuid())
+  ticketId String
+  ticket   Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fecha    DateTime
+  evento   String
+  detalle  String?  @db.Text
+
+  @@index([ticketId])
+}
+
+model TicketArchivo {
+  id            String   @id @default(cuid())
+  ticketId      String
+  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tipo          String // Foto | Video
+  nombreArchivo String
+  mimeType      String
+  contenido     String   @db.LongText
+  fechaSubida   DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+model EncuestaSatisfaccion {
+  id           String   @id @default(cuid())
+  ticketId     String   @unique
+  ticket       Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  calificacion Int // 1-5
+  comentario   String?  @db.Text
+  fecha        DateTime @default(now())
+}
