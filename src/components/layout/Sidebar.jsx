@@ -1,8 +1,11 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { MODULES } from '../../lib/modules';
+import { puedeVer } from '../../lib/authStore';
 
 export default function Sidebar() {
+  const visibles = MODULES.filter((m) => puedeVer(m.id));
+
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col bg-slate-900 text-slate-200 shrink-0">
       <div className="flex items-center gap-2 px-5 py-5 border-b border-slate-800">
@@ -31,7 +34,7 @@ export default function Sidebar() {
           Módulos
         </p>
 
-        {MODULES.map((m) => {
+        {visibles.map((m) => {
           const Icon = m.icon;
           return (
             <NavLink

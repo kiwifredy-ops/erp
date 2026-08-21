@@ -1,9 +1,15 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermiso } from '../middleware/permisos.js';
 
 export const rrhhRouter = Router();
 rrhhRouter.use(requireAuth);
+
+const V = requirePermiso('rrhh', 'ver');
+const C = requirePermiso('rrhh', 'crear');
+const E = requirePermiso('rrhh', 'editar');
+const D = requirePermiso('rrhh', 'eliminar');
 
 const NEXT_ESTADO = {
   Activo: ['Vacaciones', 'Licencia médica', 'Baja'],
@@ -24,7 +30,7 @@ function diasHasta(fecha) {
   return Math.round(ms / 86400000);
 }
 
-rrhhRouter.get('/empleados', async (req, res) => {
+rrhhRouter.get('/empleados', V, async (req, res) => {
   const empleados = await prisma.empleado.findMany({
     include: DOC_INCLUDE,
     orderBy: { createdAt: 'desc' },
@@ -32,7 +38,7 @@ rrhhRouter.get('/empleados', async (req, res) => {
   res.json(empleados);
 });
 
-rrhhRouter.get('/empleados/alertas', async (req, res) => {
+rrhhRouter.get('/empleados/alertas', V, async (req, res) => {
   const empleados = await prisma.empleado.findMany({ where: { estado: { not: 'Baja' } } });
   const contratosPorVencer = empleados
     .filter((e) => e.fechaTerminoContrato)
@@ -48,7 +54,7 @@ rrhhRouter.get('/empleados/alertas', async (req, res) => {
   });
 });
 
-rrhhRouter.post('/empleados', async (req, res) => {
+rrhhRouter.post('/empleados', C, async (req, res) => {
   const { nombre, documento, cargo, departamento, tipoContrato, fechaIngreso, email, telefono } = req.body;
   const empleado = await prisma.empleado.create({
     data: {
@@ -69,7 +75,7 @@ rrhhRouter.post('/empleados', async (req, res) => {
   res.status(201).json(empleado);
 });
 
-rrhhRouter.patch('/empleados/:id', async (req, res) => {
+rrhhRouter.patch('/empleados/:id', E, async (req, res) => {
   const { cargo, departamento, tipoContrato } = req.body;
   const before = await prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Empleado no encontrado' });
@@ -112,7 +118,7 @@ const CAMPOS_PERFIL = [
 ];
 const CAMPOS_FECHA = new Set(['fechaTerminoContrato', 'rutVencimiento']);
 
-rrhhRouter.patch('/empleados/:id/perfil', async (req, res) => {
+rrhhRouter.patch('/empleados/:id/perfil', E, async (req, res) => {
   const before = await prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Empleado no encontrado' });
 
@@ -134,7 +140,7 @@ rrhhRouter.patch('/empleados/:id/perfil', async (req, res) => {
   res.json(empleado);
 });
 
-rrhhRouter.post('/empleados/:id/estado', async (req, res) => {
+rrhhRouter.post('/empleados/:id/estado', E, async (req, res) => {
   const { estado, motivo } = req.body;
   const before = await prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Empleado no encontrado' });
@@ -155,7 +161,7 @@ rrhhRouter.post('/empleados/:id/estado', async (req, res) => {
 
 // --- Hijos -----------------------------------------------------------------
 
-rrhhRouter.post('/empleados/:id/hijos', async (req, res) => {
+rrhhRouter.post('/empleados/:id/hijos', E, async (req, res) => {
   const { nombre, fechaNacimiento } = req.body;
   const empleado = await prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!empleado) return res.status(404).json({ error: 'Empleado no encontrado' });
@@ -167,7 +173,7 @@ rrhhRouter.post('/empleados/:id/hijos', async (req, res) => {
   res.status(201).json(actualizado);
 });
 
-rrhhRouter.delete('/empleados/:id/hijos/:hijoId', async (req, res) => {
+rrhhRouter.delete('/empleados/:id/hijos/:hijoId', D, async (req, res) => {
   await prisma.hijo.deleteMany({ where: { id: req.params.hijoId, empleadoId: req.params.id } });
   const actualizado = await prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
   res.json(actualizado);
@@ -175,7 +181,7 @@ rrhhRouter.delete('/empleados/:id/hijos/:hijoId', async (req, res) => {
 
 // --- Documentos --------------------------------------------------------------
 
-rrhhRouter.post('/empleados/:id/documentos', async (req, res) => {
+rrhhRouter.post('/empleados/:id/documentos', E, async (req, res) => {
   const { tipo, nombreArchivo, mimeType, contenido } = req.body;
   if (!tipo || !nombreArchivo || !mimeType || !contenido) {
     return res.status(400).json({ error: 'Faltan datos del documento' });
@@ -193,19 +199,19 @@ rrhhRouter.post('/empleados/:id/documentos', async (req, res) => {
   res.status(201).json(actualizado);
 });
 
-rrhhRouter.get('/empleados/:id/documentos/:docId', async (req, res) => {
+rrhhRouter.get('/empleados/:id/documentos/:docId', V, async (req, res) => {
   const doc = await prisma.documento.findFirst({ where: { id: req.params.docId, empleadoId: req.params.id } });
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
   res.json(doc);
 });
 
-rrhhRouter.delete('/empleados/:id/documentos/:docId', async (req, res) => {
+rrhhRouter.delete('/empleados/:id/documentos/:docId', D, async (req, res) => {
   await prisma.documento.deleteMany({ where: { id: req.params.docId, empleadoId: req.params.id } });
   const actualizado = await prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
   res.json(actualizado);
 });
 
-rrhhRouter.get('/departamentos-resumen', async (req, res) => {
+rrhhRouter.get('/departamentos-resumen', V, async (req, res) => {
   const empleados = await prisma.empleado.findMany();
   const porDepto = {};
   for (const e of empleados) {

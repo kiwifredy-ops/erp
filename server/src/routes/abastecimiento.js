@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermiso } from '../middleware/permisos.js';
 
 export const abastecimientoRouter = Router();
 abastecimientoRouter.use(requireAuth);
+
+const V = requirePermiso('abastecimiento', 'ver');
+const C = requirePermiso('abastecimiento', 'crear');
+const E = requirePermiso('abastecimiento', 'editar');
 
 const NEXT_ESTADO = {
   Solicitada: ['Aprobada', 'Rechazada'],
@@ -35,7 +40,7 @@ async function nextFolio() {
   return `OC${String(count + 1).padStart(4, '0')}`;
 }
 
-abastecimientoRouter.get('/proveedores', async (req, res) => {
+abastecimientoRouter.get('/proveedores', V, async (req, res) => {
   const proveedores = await prisma.proveedor.findMany({ orderBy: { nombre: 'asc' } });
   const ordenes = await prisma.ordenCompra.findMany({ where: { calificacionProveedor: { not: null } } });
   const conCalificacion = proveedores.map((p) => {
@@ -46,20 +51,20 @@ abastecimientoRouter.get('/proveedores', async (req, res) => {
   res.json(conCalificacion);
 });
 
-abastecimientoRouter.post('/proveedores', async (req, res) => {
+abastecimientoRouter.post('/proveedores', C, async (req, res) => {
   const { nombre, rubro, contacto, telefono } = req.body;
   const proveedor = await prisma.proveedor.create({ data: { nombre, rubro, contacto, telefono } });
   res.status(201).json(proveedor);
 });
 
-abastecimientoRouter.post('/proveedores/:id/toggle', async (req, res) => {
+abastecimientoRouter.post('/proveedores/:id/toggle', E, async (req, res) => {
   const before = await prisma.proveedor.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Proveedor no encontrado' });
   const proveedor = await prisma.proveedor.update({ where: { id: req.params.id }, data: { activo: !before.activo } });
   res.json(proveedor);
 });
 
-abastecimientoRouter.get('/ordenes', async (req, res) => {
+abastecimientoRouter.get('/ordenes', V, async (req, res) => {
   const ordenes = await prisma.ordenCompra.findMany({
     select: ORDEN_SELECT_SIN_DOC,
     orderBy: { createdAt: 'desc' },
@@ -67,7 +72,7 @@ abastecimientoRouter.get('/ordenes', async (req, res) => {
   res.json(ordenes);
 });
 
-abastecimientoRouter.get('/ordenes/alertas', async (req, res) => {
+abastecimientoRouter.get('/ordenes/alertas', V, async (req, res) => {
   const ordenes = await prisma.ordenCompra.findMany({ where: { estado: 'En tránsito' } });
   const atrasadas = ordenes
     .filter((o) => o.fechaEntregaEstimada)
@@ -77,7 +82,7 @@ abastecimientoRouter.get('/ordenes/alertas', async (req, res) => {
   res.json({ atrasadas });
 });
 
-abastecimientoRouter.post('/ordenes', async (req, res) => {
+abastecimientoRouter.post('/ordenes', C, async (req, res) => {
   const { proveedor, fecha, fechaEntregaEstimada, items } = req.body;
   if (!items?.length) return res.status(400).json({ error: 'La orden debe tener al menos un ítem' });
 
@@ -96,7 +101,7 @@ abastecimientoRouter.post('/ordenes', async (req, res) => {
   res.status(201).json(orden);
 });
 
-abastecimientoRouter.post('/ordenes/:id/estado', async (req, res) => {
+abastecimientoRouter.post('/ordenes/:id/estado', E, async (req, res) => {
   const { estado, motivo, calificacion } = req.body;
   const before = await prisma.ordenCompra.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Orden no encontrada' });
@@ -119,7 +124,7 @@ abastecimientoRouter.post('/ordenes/:id/estado', async (req, res) => {
   res.json(orden);
 });
 
-abastecimientoRouter.post('/ordenes/:id/documento', async (req, res) => {
+abastecimientoRouter.post('/ordenes/:id/documento', E, async (req, res) => {
   const { nombreArchivo, mimeType, contenido } = req.body;
   if (!nombreArchivo || !mimeType || !contenido) return res.status(400).json({ error: 'Faltan datos del documento' });
 
@@ -136,7 +141,7 @@ abastecimientoRouter.post('/ordenes/:id/documento', async (req, res) => {
   res.json(orden);
 });
 
-abastecimientoRouter.get('/ordenes/:id/documento', async (req, res) => {
+abastecimientoRouter.get('/ordenes/:id/documento', V, async (req, res) => {
   const orden = await prisma.ordenCompra.findUnique({ where: { id: req.params.id } });
   if (!orden || !orden.documentoContenido) return res.status(404).json({ error: 'Documento no encontrado' });
   res.json({ contenido: orden.documentoContenido, nombreArchivo: orden.documentoNombre, mimeType: orden.documentoMimeType });

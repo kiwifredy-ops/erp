@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermiso } from '../middleware/permisos.js';
 
 export const contabilidadRouter = Router();
 contabilidadRouter.use(requireAuth);
+
+const V = requirePermiso('contabilidad', 'ver');
+const C = requirePermiso('contabilidad', 'crear');
+const E = requirePermiso('contabilidad', 'editar');
 
 const IVA_TASA = 0.19;
 
@@ -26,7 +31,7 @@ function saldoPendiente(f) {
 
 // --- Cuentas bancarias -------------------------------------------------------
 
-contabilidadRouter.get('/cuentas', async (req, res) => {
+contabilidadRouter.get('/cuentas', V, async (req, res) => {
   const cuentas = await prisma.cuentaBancaria.findMany({
     include: { movimientos: { orderBy: { fecha: 'desc' } } },
     orderBy: { createdAt: 'asc' },
@@ -39,7 +44,7 @@ contabilidadRouter.get('/cuentas', async (req, res) => {
   );
 });
 
-contabilidadRouter.post('/cuentas', async (req, res) => {
+contabilidadRouter.post('/cuentas', C, async (req, res) => {
   const { nombre, banco, numeroCuenta, tipo, saldoInicial } = req.body;
   const cuenta = await prisma.cuentaBancaria.create({
     data: { nombre, banco, numeroCuenta, tipo, saldoInicial: Number(saldoInicial) || 0 },
@@ -48,7 +53,7 @@ contabilidadRouter.post('/cuentas', async (req, res) => {
   res.status(201).json({ ...cuenta, saldoActual: cuenta.saldoInicial });
 });
 
-contabilidadRouter.post('/cuentas/:id/movimiento', async (req, res) => {
+contabilidadRouter.post('/cuentas/:id/movimiento', E, async (req, res) => {
   const { fecha, tipo, categoria, descripcion, monto } = req.body;
   const cuenta = await prisma.cuentaBancaria.findUnique({ where: { id: req.params.id } });
   if (!cuenta) return res.status(404).json({ error: 'Cuenta no encontrada' });
@@ -67,7 +72,7 @@ async function nextFolio(model, prefix) {
   return `${prefix}${String(count + 1).padStart(4, '0')}`;
 }
 
-contabilidadRouter.get('/facturas-venta', async (req, res) => {
+contabilidadRouter.get('/facturas-venta', V, async (req, res) => {
   const facturas = await prisma.facturaVenta.findMany({
     include: FV_INCLUDE,
     orderBy: { createdAt: 'desc' },
@@ -75,7 +80,7 @@ contabilidadRouter.get('/facturas-venta', async (req, res) => {
   res.json(facturas.map((f) => ({ ...f, saldoPendiente: saldoPendiente(f), diasParaVencer: diasHasta(f.fechaVencimiento) })));
 });
 
-contabilidadRouter.post('/facturas-venta', async (req, res) => {
+contabilidadRouter.post('/facturas-venta', C, async (req, res) => {
   const { cliente, clienteId, fechaEmision, fechaVencimiento, montoNeto } = req.body;
   const neto = Number(montoNeto);
   const iva = Math.round(neto * IVA_TASA);
@@ -98,7 +103,7 @@ contabilidadRouter.post('/facturas-venta', async (req, res) => {
   res.status(201).json({ ...factura, saldoPendiente: saldoPendiente(factura), diasParaVencer: diasHasta(factura.fechaVencimiento) });
 });
 
-contabilidadRouter.post('/facturas-venta/:id/pago', async (req, res) => {
+contabilidadRouter.post('/facturas-venta/:id/pago', E, async (req, res) => {
   const { fecha, monto, medioPago, cuentaId } = req.body;
   const factura = await prisma.facturaVenta.findUnique({ where: { id: req.params.id }, include: { notasCredito: true } });
   if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
@@ -127,7 +132,7 @@ contabilidadRouter.post('/facturas-venta/:id/pago', async (req, res) => {
   res.json({ ...factura2, saldoPendiente: saldoPendiente(factura2), diasParaVencer: diasHasta(factura2.fechaVencimiento) });
 });
 
-contabilidadRouter.post('/facturas-venta/:id/notas-credito', async (req, res) => {
+contabilidadRouter.post('/facturas-venta/:id/notas-credito', E, async (req, res) => {
   const { fecha, motivo, monto } = req.body;
   const factura = await prisma.facturaVenta.findUnique({ where: { id: req.params.id } });
   if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
@@ -142,7 +147,7 @@ contabilidadRouter.post('/facturas-venta/:id/notas-credito', async (req, res) =>
   res.status(201).json({ ...factura2, saldoPendiente: saldoPendiente(factura2), diasParaVencer: diasHasta(factura2.fechaVencimiento) });
 });
 
-contabilidadRouter.post('/facturas-venta/:id/anular', async (req, res) => {
+contabilidadRouter.post('/facturas-venta/:id/anular', E, async (req, res) => {
   const factura = await prisma.facturaVenta.update({
     where: { id: req.params.id },
     data: { estado: 'Anulada', bitacora: { create: [{ fecha: new Date(), evento: 'Factura anulada', detalle: req.body.motivo || '—' }] } },
@@ -153,7 +158,7 @@ contabilidadRouter.post('/facturas-venta/:id/anular', async (req, res) => {
 
 // --- Facturas de compra ------------------------------------------------------
 
-contabilidadRouter.get('/facturas-compra', async (req, res) => {
+contabilidadRouter.get('/facturas-compra', V, async (req, res) => {
   const facturas = await prisma.facturaCompra.findMany({
     include: { pagos: { orderBy: { fecha: 'asc' } }, notasCredito: { orderBy: { fecha: 'asc' } }, bitacora: { orderBy: { fecha: 'asc' } } },
     orderBy: { createdAt: 'desc' },
@@ -161,7 +166,7 @@ contabilidadRouter.get('/facturas-compra', async (req, res) => {
   res.json(facturas.map((f) => ({ ...f, saldoPendiente: saldoPendiente(f), diasParaVencer: diasHasta(f.fechaVencimiento) })));
 });
 
-contabilidadRouter.post('/facturas-compra', async (req, res) => {
+contabilidadRouter.post('/facturas-compra', C, async (req, res) => {
   const { proveedor, fechaEmision, fechaVencimiento, montoNeto } = req.body;
   const neto = Number(montoNeto);
   const iva = Math.round(neto * IVA_TASA);
@@ -183,7 +188,7 @@ contabilidadRouter.post('/facturas-compra', async (req, res) => {
   res.status(201).json({ ...factura, saldoPendiente: saldoPendiente(factura), diasParaVencer: diasHasta(factura.fechaVencimiento) });
 });
 
-contabilidadRouter.post('/facturas-compra/:id/pago', async (req, res) => {
+contabilidadRouter.post('/facturas-compra/:id/pago', E, async (req, res) => {
   const { fecha, monto, medioPago, cuentaId } = req.body;
   const factura = await prisma.facturaCompra.findUnique({ where: { id: req.params.id }, include: { notasCredito: true } });
   if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
@@ -212,7 +217,7 @@ contabilidadRouter.post('/facturas-compra/:id/pago', async (req, res) => {
   res.json({ ...factura2, saldoPendiente: saldoPendiente(factura2), diasParaVencer: diasHasta(factura2.fechaVencimiento) });
 });
 
-contabilidadRouter.post('/facturas-compra/:id/notas-credito', async (req, res) => {
+contabilidadRouter.post('/facturas-compra/:id/notas-credito', E, async (req, res) => {
   const { fecha, motivo, monto } = req.body;
   const factura = await prisma.facturaCompra.findUnique({ where: { id: req.params.id } });
   if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
@@ -227,7 +232,7 @@ contabilidadRouter.post('/facturas-compra/:id/notas-credito', async (req, res) =
   res.status(201).json({ ...factura2, saldoPendiente: saldoPendiente(factura2), diasParaVencer: diasHasta(factura2.fechaVencimiento) });
 });
 
-contabilidadRouter.post('/facturas-compra/:id/anular', async (req, res) => {
+contabilidadRouter.post('/facturas-compra/:id/anular', E, async (req, res) => {
   const factura = await prisma.facturaCompra.update({
     where: { id: req.params.id },
     data: { estado: 'Anulada', bitacora: { create: [{ fecha: new Date(), evento: 'Factura anulada', detalle: req.body.motivo || '—' }] } },
@@ -238,7 +243,7 @@ contabilidadRouter.post('/facturas-compra/:id/anular', async (req, res) => {
 
 // --- Resumen y alertas ---------------------------------------------------------
 
-contabilidadRouter.get('/resumen', async (req, res) => {
+contabilidadRouter.get('/resumen', V, async (req, res) => {
   const [cuentas, facturasVenta, facturasCompra] = await Promise.all([
     prisma.cuentaBancaria.findMany({ where: { activa: true }, include: { movimientos: true } }),
     prisma.facturaVenta.findMany({ include: { notasCredito: true } }),
@@ -270,7 +275,7 @@ contabilidadRouter.get('/resumen', async (req, res) => {
   });
 });
 
-contabilidadRouter.get('/alertas', async (req, res) => {
+contabilidadRouter.get('/alertas', V, async (req, res) => {
   const [facturasVenta, facturasCompra] = await Promise.all([
     prisma.facturaVenta.findMany({ where: { estado: 'Pendiente' }, include: { notasCredito: true } }),
     prisma.facturaCompra.findMany({ where: { estado: 'Pendiente' }, include: { notasCredito: true } }),

@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermiso } from '../middleware/permisos.js';
 
 export const flotaRouter = Router();
 flotaRouter.use(requireAuth);
+
+const V = requirePermiso('flota', 'ver');
+const C = requirePermiso('flota', 'crear');
+const E = requirePermiso('flota', 'editar');
 
 const NEXT_ESTADO = {
   Disponible: ['Asignado', 'En mantención', 'Fuera de servicio'],
@@ -12,7 +17,7 @@ const NEXT_ESTADO = {
   'Fuera de servicio': ['En mantención'],
 };
 
-flotaRouter.get('/vehiculos', async (req, res) => {
+flotaRouter.get('/vehiculos', V, async (req, res) => {
   const vehiculos = await prisma.vehiculo.findMany({
     include: { bitacora: { orderBy: { fecha: 'asc' } } },
     orderBy: { createdAt: 'desc' },
@@ -32,7 +37,7 @@ const DOCS_VEHICULO = [
   { campo: 'vencimientoPermisoCirculacion', nombre: 'Permiso de circulación' },
 ];
 
-flotaRouter.get('/vehiculos/alertas', async (req, res) => {
+flotaRouter.get('/vehiculos/alertas', V, async (req, res) => {
   const vehiculos = await prisma.vehiculo.findMany({ where: { estado: { not: 'Fuera de servicio' } } });
   const alertas = [];
   for (const v of vehiculos) {
@@ -46,7 +51,7 @@ flotaRouter.get('/vehiculos/alertas', async (req, res) => {
   res.json({ documentosPorVencer: alertas });
 });
 
-flotaRouter.post('/vehiculos', async (req, res) => {
+flotaRouter.post('/vehiculos', C, async (req, res) => {
   const { patente, marca, modelo, anio, tipo, kilometraje, proximaMantencionKm } = req.body;
   const vehiculo = await prisma.vehiculo.create({
     data: {
@@ -64,7 +69,7 @@ flotaRouter.post('/vehiculos', async (req, res) => {
   res.status(201).json(vehiculo);
 });
 
-flotaRouter.patch('/vehiculos/:id', async (req, res) => {
+flotaRouter.patch('/vehiculos/:id', E, async (req, res) => {
   const data = {};
   for (const doc of DOCS_VEHICULO) {
     if (req.body[doc.campo] !== undefined) data[doc.campo] = req.body[doc.campo] ? new Date(req.body[doc.campo]) : null;
@@ -77,7 +82,7 @@ flotaRouter.patch('/vehiculos/:id', async (req, res) => {
   res.json(vehiculo);
 });
 
-flotaRouter.post('/vehiculos/:id/asignar', async (req, res) => {
+flotaRouter.post('/vehiculos/:id/asignar', E, async (req, res) => {
   const { tecnico } = req.body;
   const vehiculo = await prisma.vehiculo.update({
     where: { id: req.params.id },
@@ -91,7 +96,7 @@ flotaRouter.post('/vehiculos/:id/asignar', async (req, res) => {
   res.json(vehiculo);
 });
 
-flotaRouter.post('/vehiculos/:id/estado', async (req, res) => {
+flotaRouter.post('/vehiculos/:id/estado', E, async (req, res) => {
   const { estado, motivo } = req.body;
   const before = await prisma.vehiculo.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Vehículo no encontrado' });
@@ -111,7 +116,7 @@ flotaRouter.post('/vehiculos/:id/estado', async (req, res) => {
   res.json(vehiculo);
 });
 
-flotaRouter.post('/vehiculos/:id/mantencion', async (req, res) => {
+flotaRouter.post('/vehiculos/:id/mantencion', E, async (req, res) => {
   const { kilometraje, detalle } = req.body;
   const km = Number(kilometraje);
   const vehiculo = await prisma.vehiculo.update({

@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermiso } from '../middleware/permisos.js';
 
 export const gastosRouter = Router();
 gastosRouter.use(requireAuth);
+
+const V = requirePermiso('gastos', 'ver');
+const C = requirePermiso('gastos', 'crear');
+const E = requirePermiso('gastos', 'editar');
 
 const NEXT_ESTADO = {
   Enviada: ['En revisión', 'Rechazada'],
@@ -30,7 +35,7 @@ async function nextFolio() {
   return `RG${String(count + 1).padStart(4, '0')}`;
 }
 
-gastosRouter.get('/rendiciones', async (req, res) => {
+gastosRouter.get('/rendiciones', V, async (req, res) => {
   const rendiciones = await prisma.rendicion.findMany({
     include: { lineas: { select: LINEA_SELECT }, bitacora: { orderBy: { fecha: 'asc' } } },
     orderBy: { createdAt: 'desc' },
@@ -38,7 +43,7 @@ gastosRouter.get('/rendiciones', async (req, res) => {
   res.json(rendiciones);
 });
 
-gastosRouter.post('/rendiciones', async (req, res) => {
+gastosRouter.post('/rendiciones', C, async (req, res) => {
   const { tecnico, fecha, lineas } = req.body;
   if (!lineas?.length) return res.status(400).json({ error: 'La rendición debe tener al menos un ítem' });
 
@@ -66,13 +71,13 @@ gastosRouter.post('/rendiciones', async (req, res) => {
   res.status(201).json(rendicion);
 });
 
-gastosRouter.get('/rendiciones/:id/lineas/:lineaId/comprobante', async (req, res) => {
+gastosRouter.get('/rendiciones/:id/lineas/:lineaId/comprobante', V, async (req, res) => {
   const linea = await prisma.rendicionLinea.findFirst({ where: { id: req.params.lineaId, rendicionId: req.params.id } });
   if (!linea || !linea.comprobante) return res.status(404).json({ error: 'Comprobante no encontrado' });
   res.json({ comprobante: linea.comprobante, comprobanteNombre: linea.comprobanteNombre });
 });
 
-gastosRouter.post('/rendiciones/:id/estado', async (req, res) => {
+gastosRouter.post('/rendiciones/:id/estado', E, async (req, res) => {
   const { estado, motivo } = req.body;
   const before = await prisma.rendicion.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Rendición no encontrada' });

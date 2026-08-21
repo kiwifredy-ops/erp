@@ -6,6 +6,10 @@ import { requireAuth } from '../middleware/auth.js';
 
 export const authRouter = Router();
 
+async function getPermisos(rol) {
+  return prisma.rolPermiso.findMany({ where: { rol } });
+}
+
 authRouter.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Correo y contraseña son requeridos' });
@@ -22,9 +26,11 @@ authRouter.post('/login', async (req, res) => {
     { expiresIn: '12h' }
   );
 
-  res.json({ token, usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol } });
+  const permisos = await getPermisos(usuario.rol);
+  res.json({ token, usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol }, permisos });
 });
 
-authRouter.get('/me', requireAuth, (req, res) => {
-  res.json({ usuario: req.user });
+authRouter.get('/me', requireAuth, async (req, res) => {
+  const permisos = await getPermisos(req.user.rol);
+  res.json({ usuario: req.user, permisos });
 });

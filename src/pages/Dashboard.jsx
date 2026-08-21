@@ -3,22 +3,29 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Clock } from 'lucide-react';
 import { MODULES, IMPLEMENTED_MODULES } from '../lib/modules';
 import { getEmpleados } from '../lib/rrhhStore';
+import { puedeVer } from '../lib/authStore';
 
 export default function Dashboard() {
   const [empleados, setEmpleados] = useState([]);
+  const visibles = MODULES.filter((m) => puedeVer(m.id));
 
   useEffect(() => {
-    getEmpleados().then(setEmpleados);
+    if (!puedeVer('rrhh')) return;
+    getEmpleados()
+      .then(setEmpleados)
+      .catch(() => {});
   }, []);
 
   const activos = empleados.filter((e) => e.estado === 'Activo').length;
 
-  const stats = [
-    { label: 'Empleados registrados', value: empleados.length },
-    { label: 'Activos', value: activos },
-    { label: 'Departamentos', value: new Set(empleados.map((e) => e.departamento)).size },
-    { label: 'Módulos disponibles', value: `${IMPLEMENTED_MODULES.length} / ${MODULES.length}` },
-  ];
+  const stats = puedeVer('rrhh')
+    ? [
+        { label: 'Empleados registrados', value: empleados.length },
+        { label: 'Activos', value: activos },
+        { label: 'Departamentos', value: new Set(empleados.map((e) => e.departamento)).size },
+        { label: 'Módulos disponibles', value: `${visibles.length} / ${MODULES.length}` },
+      ]
+    : [{ label: 'Módulos disponibles', value: `${visibles.length} / ${MODULES.length}` }];
 
   return (
     <div className="space-y-6">
@@ -39,7 +46,7 @@ export default function Dashboard() {
       <div>
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Módulos</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {MODULES.map((m) => {
+          {visibles.map((m) => {
             const Icon = m.icon;
             const implemented = IMPLEMENTED_MODULES.includes(m.id);
             return (
@@ -67,6 +74,9 @@ export default function Dashboard() {
               </Link>
             );
           })}
+          {visibles.length === 0 && (
+            <p className="text-sm text-slate-400">No tienes acceso a ningún módulo todavía. Contacta a un administrador.</p>
+          )}
         </div>
       </div>
     </div>

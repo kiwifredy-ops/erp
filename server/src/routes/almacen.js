@@ -1,11 +1,16 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermiso } from '../middleware/permisos.js';
 
 export const almacenRouter = Router();
 almacenRouter.use(requireAuth);
 
-almacenRouter.get('/items', async (req, res) => {
+const V = requirePermiso('almacen', 'ver');
+const C = requirePermiso('almacen', 'crear');
+const E = requirePermiso('almacen', 'editar');
+
+almacenRouter.get('/items', V, async (req, res) => {
   const items = await prisma.item.findMany({
     include: { movimientos: { orderBy: { fecha: 'asc' } } },
     orderBy: { createdAt: 'desc' },
@@ -13,7 +18,7 @@ almacenRouter.get('/items', async (req, res) => {
   res.json(items);
 });
 
-almacenRouter.get('/items/alertas', async (req, res) => {
+almacenRouter.get('/items/alertas', V, async (req, res) => {
   const items = await prisma.item.findMany();
   const bajoMinimo = items
     .filter((it) => it.stock < it.stockMinimo)
@@ -21,7 +26,7 @@ almacenRouter.get('/items/alertas', async (req, res) => {
   res.json({ bajoMinimo });
 });
 
-almacenRouter.post('/items', async (req, res) => {
+almacenRouter.post('/items', C, async (req, res) => {
   const { nombre, categoria, unidad, stock, stockMinimo, ubicacion } = req.body;
   const item = await prisma.item.create({
     data: {
@@ -38,7 +43,7 @@ almacenRouter.post('/items', async (req, res) => {
   res.status(201).json(item);
 });
 
-almacenRouter.post('/items/:id/movimientos', async (req, res) => {
+almacenRouter.post('/items/:id/movimientos', E, async (req, res) => {
   const { tipo, cantidad, motivo } = req.body;
   const before = await prisma.item.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Material no encontrado' });
@@ -56,7 +61,7 @@ almacenRouter.post('/items/:id/movimientos', async (req, res) => {
 });
 
 // Genera una orden de compra en Abastecimiento a partir de un material bajo mínimo.
-almacenRouter.post('/items/:id/solicitar-reposicion', async (req, res) => {
+almacenRouter.post('/items/:id/solicitar-reposicion', E, async (req, res) => {
   const { proveedor, cantidad, precioUnitario } = req.body;
   const item = await prisma.item.findUnique({ where: { id: req.params.id } });
   if (!item) return res.status(404).json({ error: 'Material no encontrado' });
@@ -79,7 +84,7 @@ almacenRouter.post('/items/:id/solicitar-reposicion', async (req, res) => {
 
 const GARANTIA_INCLUDE = { bitacora: { orderBy: { fecha: 'asc' } } };
 
-almacenRouter.get('/equipos', async (req, res) => {
+almacenRouter.get('/equipos', V, async (req, res) => {
   const equipos = await prisma.equipo.findMany({
     include: GARANTIA_INCLUDE,
     orderBy: { createdAt: 'desc' },
@@ -87,7 +92,7 @@ almacenRouter.get('/equipos', async (req, res) => {
   res.json(equipos);
 });
 
-almacenRouter.post('/equipos', async (req, res) => {
+almacenRouter.post('/equipos', C, async (req, res) => {
   const { equipo, tipo, numeroSerie, fechaCompra, mesesGarantia } = req.body;
   const nuevo = await prisma.equipo.create({
     data: {
@@ -103,7 +108,7 @@ almacenRouter.post('/equipos', async (req, res) => {
   res.status(201).json(nuevo);
 });
 
-almacenRouter.post('/equipos/:id/asignar', async (req, res) => {
+almacenRouter.post('/equipos/:id/asignar', E, async (req, res) => {
   const { tecnico, clienteInstalacion } = req.body;
   const equipo = await prisma.equipo.update({
     where: { id: req.params.id },
@@ -125,7 +130,7 @@ almacenRouter.post('/equipos/:id/asignar', async (req, res) => {
   res.json(equipo);
 });
 
-almacenRouter.post('/equipos/:id/devolver', async (req, res) => {
+almacenRouter.post('/equipos/:id/devolver', E, async (req, res) => {
   const before = await prisma.equipo.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Equipo no encontrado' });
 
@@ -141,7 +146,7 @@ almacenRouter.post('/equipos/:id/devolver', async (req, res) => {
   res.json(equipo);
 });
 
-almacenRouter.patch('/equipos/:id', async (req, res) => {
+almacenRouter.patch('/equipos/:id', E, async (req, res) => {
   const { numeroSerie, fechaCompra, mesesGarantia, clienteInstalacion } = req.body;
   const data = {};
   if (numeroSerie !== undefined) data.numeroSerie = numeroSerie;

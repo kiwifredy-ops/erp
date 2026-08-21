@@ -553,3 +553,23 @@ model Cliente {
   tickets       Ticket[]
   facturasVenta FacturaVenta[]
 }
+
+// --- Usuarios y Permisos ----------------------------------------------------
+//
+// El acceso se controla por rol (Usuario.rol), no por usuario individual.
+// Cada combinación (rol, módulo) tiene 4 flags independientes: ver, crear,
+// editar, eliminar. El backend aplica esto en cada endpoint de cada módulo;
+// sin una fila de permiso explícita para (rol, módulo), el acceso se niega
+// por defecto.
+
+model RolPermiso {
+  id            String  @id @default(cuid())
+  rol           String
+  moduloId      String
+  puedeVer      Boolean @default(false)
+  puedeCrear    Boolean @default(false)
+  puedeEditar   Boolean @default(false)
+  puedeEliminar Boolean @default(false)
+
+  @@unique([rol, moduloId])
+}

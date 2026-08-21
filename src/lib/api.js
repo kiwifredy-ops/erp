@@ -35,6 +35,7 @@ export async function api(path, { method = 'GET', body } = {}) {
     if (res.status === 401 && path !== '/auth/login') {
       setToken(null);
       localStorage.removeItem('erp:session');
+      localStorage.removeItem('erp:permisos');
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login';
       }

@@ -364,6 +364,40 @@ async function seedTickets(clienteIds) {
   }
 }
 
+const TODO = { puedeVer: true, puedeCrear: true, puedeEditar: true, puedeEliminar: true };
+const SOLO_VER = { puedeVer: true, puedeCrear: false, puedeEditar: false, puedeEliminar: false };
+const VER_EDITAR = { puedeVer: true, puedeCrear: false, puedeEditar: true, puedeEliminar: false };
+// Ver+crear+editar sin eliminar — para módulos de autoservicio (marcar
+// entrada/salida propia) donde no tiene sentido poder borrar registros.
+const AUTOSERVICIO = { puedeVer: true, puedeCrear: true, puedeEditar: true, puedeEliminar: false };
+
+const TODOS_LOS_MODULOS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes', 'usuarios'];
+
+// Matriz de permisos por defecto — el administrador puede reconfigurar todo
+// esto libremente después desde el módulo de Usuarios. Todos los roles
+// tienen acceso de autoservicio a Asistencia (marcar su propia entrada y
+// salida), sea cual sea su función principal.
+const PERMISOS_POR_ROL = {
+  'Administrador del Sistema': Object.fromEntries(TODOS_LOS_MODULOS.map((m) => [m, TODO])),
+  'Gerencia General': { ...Object.fromEntries(TODOS_LOS_MODULOS.map((m) => [m, SOLO_VER])), asistencia: AUTOSERVICIO },
+  RRHH: { rrhh: TODO, asistencia: AUTOSERVICIO },
+  'Jefe de Almacén': { almacen: TODO, abastecimiento: TODO, asistencia: AUTOSERVICIO },
+  'Supervisor de Operaciones': { tickets: TODO, flota: TODO, clientes: VER_EDITAR, rrhh: SOLO_VER, asistencia: AUTOSERVICIO },
+  'Técnico de Campo': { tickets: VER_EDITAR, gastos: TODO, asistencia: AUTOSERVICIO },
+  Finanzas: { contabilidad: TODO, gastos: SOLO_VER, abastecimiento: SOLO_VER, clientes: SOLO_VER, asistencia: AUTOSERVICIO },
+};
+
+async function seedPermisos() {
+  const existing = await prisma.rolPermiso.count();
+  if (existing > 0) return;
+
+  for (const [rol, modulos] of Object.entries(PERMISOS_POR_ROL)) {
+    for (const [moduloId, flags] of Object.entries(modulos)) {
+      await prisma.rolPermiso.create({ data: { rol, moduloId, ...flags } });
+    }
+  }
+}
+
 async function main() {
   await seedUsuarios();
   await seedEmpleados();
@@ -375,6 +409,7 @@ async function main() {
   const clienteIds = await seedClientes();
   await seedContabilidad(clienteIds);
   await seedTickets(clienteIds);
+  await seedPermisos();
   console.log(`Seed completo. Usuarios demo, contraseña: ${DEMO_PASSWORD}`);
 }
 

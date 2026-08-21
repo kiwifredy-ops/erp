@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePermiso } from '../middleware/permisos.js';
 
 export const asistenciaRouter = Router();
 asistenciaRouter.use(requireAuth);
+
+const V = requirePermiso('asistencia', 'ver');
+const C = requirePermiso('asistencia', 'crear');
+const E = requirePermiso('asistencia', 'editar');
 
 const HORA_ENTRADA_ESPERADA = '08:30';
 const JORNADA_NORMAL_HORAS = 9;
@@ -20,12 +25,12 @@ function calcularEstado(entrada) {
   return entrada > HORA_ENTRADA_ESPERADA ? 'Atraso' : 'Normal';
 }
 
-asistenciaRouter.get('/marcaciones', async (req, res) => {
+asistenciaRouter.get('/marcaciones', V, async (req, res) => {
   const marcaciones = await prisma.marcacion.findMany({ orderBy: { fecha: 'desc' } });
   res.json(marcaciones);
 });
 
-asistenciaRouter.post('/marcaciones/entrada', async (req, res) => {
+asistenciaRouter.post('/marcaciones/entrada', C, async (req, res) => {
   const { empleado, fecha, hora, lat, lng } = req.body;
   const marcacion = await prisma.marcacion.create({
     data: {
@@ -40,7 +45,7 @@ asistenciaRouter.post('/marcaciones/entrada', async (req, res) => {
   res.status(201).json(marcacion);
 });
 
-asistenciaRouter.post('/marcaciones/:id/salida', async (req, res) => {
+asistenciaRouter.post('/marcaciones/:id/salida', E, async (req, res) => {
   const { hora, lat, lng } = req.body;
   const before = await prisma.marcacion.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Marcación no encontrada' });
@@ -60,7 +65,7 @@ asistenciaRouter.post('/marcaciones/:id/salida', async (req, res) => {
   res.json(marcacion);
 });
 
-asistenciaRouter.get('/resumen', async (req, res) => {
+asistenciaRouter.get('/resumen', V, async (req, res) => {
   const marcaciones = await prisma.marcacion.findMany();
   const porEmpleado = {};
   for (const m of marcaciones) {
