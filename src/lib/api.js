@@ -29,6 +29,17 @@ export async function api(path, { method = 'GET', body } = {}) {
     } catch {
       // respuesta sin cuerpo JSON
     }
+
+    // Sesión vencida o token inválido: limpiar y mandar a login en vez de
+    // dejar al usuario atascado viendo el error crudo en el formulario.
+    if (res.status === 401 && path !== '/auth/login') {
+      setToken(null);
+      localStorage.removeItem('erp:session');
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+    }
+
     throw new Error(message);
   }
 
