@@ -172,6 +172,88 @@ async function seedAbastecimiento() {
   });
 }
 
+async function seedContabilidad() {
+  const existingCuentas = await prisma.cuentaBancaria.count();
+  if (existingCuentas > 0) return;
+
+  const cuentaCorriente = await prisma.cuentaBancaria.create({
+    data: { nombre: 'Cuenta Corriente Principal', banco: 'Banco de Chile', numeroCuenta: '00-123-45678-90', tipo: 'Cuenta Corriente', saldoInicial: 8000000 },
+  });
+  const cuentaVista = await prisma.cuentaBancaria.create({
+    data: { nombre: 'Cuenta Vista Operaciones', banco: 'BancoEstado', numeroCuenta: '11-987-65432-10', tipo: 'Cuenta Vista', saldoInicial: 1500000 },
+  });
+
+  await prisma.movimientoBancario.create({
+    data: { cuentaId: cuentaCorriente.id, fecha: new Date('2026-08-05'), tipo: 'Egreso', categoria: 'Gasto operacional', descripcion: 'Arriendo de bodega — agosto', monto: 650000 },
+  });
+
+  const iva = (neto) => Math.round(neto * 0.19);
+
+  const ventas = [
+    { cliente: 'Constructora Los Andes SpA', fechaEmision: '2026-07-20', fechaVencimiento: '2026-08-19', montoNeto: 4200000, pagada: true },
+    { cliente: 'Retail Sur S.A.', fechaEmision: '2026-08-01', fechaVencimiento: '2026-08-31', montoNeto: 2800000, pagada: false },
+    { cliente: 'Municipalidad de Providencia', fechaEmision: '2026-08-10', fechaVencimiento: '2026-08-25', montoNeto: 5100000, pagada: false },
+  ];
+  let nV = 1;
+  for (const v of ventas) {
+    const neto = v.montoNeto;
+    const ivaMonto = iva(neto);
+    const total = neto + ivaMonto;
+    const factura = await prisma.facturaVenta.create({
+      data: {
+        folio: `FV${String(nV++).padStart(4, '0')}`,
+        cliente: v.cliente,
+        fechaEmision: new Date(v.fechaEmision),
+        fechaVencimiento: new Date(v.fechaVencimiento),
+        montoNeto: neto,
+        iva: ivaMonto,
+        montoTotal: total,
+        montoPagado: v.pagada ? total : 0,
+        estado: v.pagada ? 'Pagada' : 'Pendiente',
+        bitacora: { create: [{ fecha: new Date(v.fechaEmision), evento: 'Factura emitida', detalle: `Emitida a ${v.cliente}.` }] },
+      },
+    });
+    if (v.pagada) {
+      await prisma.pagoCliente.create({ data: { facturaId: factura.id, fecha: new Date(v.fechaVencimiento), monto: total, medioPago: 'Transferencia', cuentaId: cuentaCorriente.id } });
+      await prisma.movimientoBancario.create({
+        data: { cuentaId: cuentaCorriente.id, fecha: new Date(v.fechaVencimiento), tipo: 'Ingreso', categoria: 'Pago de cliente', descripcion: `${factura.folio} — ${v.cliente}`, monto: total },
+      });
+    }
+  }
+
+  const compras = [
+    { proveedor: 'SecureTech Distribuidora', fechaEmision: '2026-07-15', fechaVencimiento: '2026-08-14', montoNeto: 1800000, pagada: true },
+    { proveedor: 'CableMax Ltda.', fechaEmision: '2026-08-05', fechaVencimiento: '2026-09-04', montoNeto: 620000, pagada: false },
+    { proveedor: 'AccesoPro SpA', fechaEmision: '2026-08-12', fechaVencimiento: '2026-08-22', montoNeto: 950000, pagada: false },
+  ];
+  let nC = 1;
+  for (const c of compras) {
+    const neto = c.montoNeto;
+    const ivaMonto = iva(neto);
+    const total = neto + ivaMonto;
+    const factura = await prisma.facturaCompra.create({
+      data: {
+        folio: `FC${String(nC++).padStart(4, '0')}`,
+        proveedor: c.proveedor,
+        fechaEmision: new Date(c.fechaEmision),
+        fechaVencimiento: new Date(c.fechaVencimiento),
+        montoNeto: neto,
+        iva: ivaMonto,
+        montoTotal: total,
+        montoPagado: c.pagada ? total : 0,
+        estado: c.pagada ? 'Pagada' : 'Pendiente',
+        bitacora: { create: [{ fecha: new Date(c.fechaEmision), evento: 'Factura recibida', detalle: `Recibida de ${c.proveedor}.` }] },
+      },
+    });
+    if (c.pagada) {
+      await prisma.pagoProveedor.create({ data: { facturaId: factura.id, fecha: new Date(c.fechaVencimiento), monto: total, medioPago: 'Transferencia', cuentaId: cuentaVista.id } });
+      await prisma.movimientoBancario.create({
+        data: { cuentaId: cuentaVista.id, fecha: new Date(c.fechaVencimiento), tipo: 'Egreso', categoria: 'Pago a proveedor', descripcion: `${factura.folio} — ${c.proveedor}`, monto: total },
+      });
+    }
+  }
+}
+
 async function main() {
   await seedUsuarios();
   await seedEmpleados();
@@ -180,6 +262,7 @@ async function main() {
   await seedAsistencia();
   await seedFlota();
   await seedAbastecimiento();
+  await seedContabilidad();
   console.log(`Seed completo. Usuarios demo, contraseña: ${DEMO_PASSWORD}`);
 }
 

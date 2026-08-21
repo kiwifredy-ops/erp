@@ -9,6 +9,7 @@ import GastosModule from './pages/modules/gastos/GastosModule';
 import AsistenciaModule from './pages/modules/asistencia/AsistenciaModule';
 import FlotaModule from './pages/modules/flota/FlotaModule';
 import AbastecimientoModule from './pages/modules/abastecimiento/AbastecimientoModule';
+import ContabilidadModule from './pages/modules/contabilidad/ContabilidadModule';
 import { IMPLEMENTED_MODULES } from './lib/modules';
 
 const MODULE_COMPONENTS = {
@@ -18,6 +19,7 @@ const MODULE_COMPONENTS = {
   asistencia: AsistenciaModule,
   flota: FlotaModule,
   abastecimiento: AbastecimientoModule,
+  contabilidad: ContabilidadModule,
 };
 
 function ModuleRoute() {

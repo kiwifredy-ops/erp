@@ -310,3 +310,142 @@ model OrdenCompraBitacora {
 
   @@index([ordenId])
 }
+
+// --- Contabilidad --------------------------------------------------------
+
+model CuentaBancaria {
+  id           String   @id @default(cuid())
+  nombre       String
+  banco        String
+  numeroCuenta String
+  tipo         String   @default("Cuenta Corriente")
+  saldoInicial Int      @default(0)
+  activa       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  movimientos MovimientoBancario[]
+}
+
+model MovimientoBancario {
+  id          String         @id @default(cuid())
+  cuentaId    String
+  cuenta      CuentaBancaria @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+  fecha       DateTime
+  tipo        String // Ingreso | Egreso
+  categoria   String // Pago de cliente, Pago a proveedor, Gasto operacional, Transferencia, Otro
+  descripcion String
+  monto       Int
+  createdAt   DateTime       @default(now())
+
+  @@index([cuentaId])
+}
+
+model FacturaVenta {
+  id               String   @id @default(cuid())
+  folio            String   @unique
+  cliente          String
+  fechaEmision     DateTime
+  fechaVencimiento DateTime
+  montoNeto        Int
+  iva              Int
+  montoTotal       Int
+  montoPagado      Int      @default(0)
+  estado           String   @default("Pendiente") // Pendiente | Pagada | Anulada
+  createdAt        DateTime @default(now())
+
+  pagos        PagoCliente[]
+  notasCredito NotaCreditoVenta[]
+  bitacora     FacturaVentaBitacora[]
+}
+
+model PagoCliente {
+  id        String       @id @default(cuid())
+  facturaId String
+  factura   FacturaVenta @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  fecha     DateTime
+  monto     Int
+  medioPago String
+  cuentaId  String?
+  createdAt DateTime     @default(now())
+
+  @@index([facturaId])
+}
+
+model NotaCreditoVenta {
+  id        String       @id @default(cuid())
+  folio     String       @unique
+  facturaId String
+  factura   FacturaVenta @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  fecha     DateTime
+  motivo    String
+  monto     Int
+  createdAt DateTime     @default(now())
+
+  @@index([facturaId])
+}
+
+model FacturaVentaBitacora {
+  id        String       @id @default(cuid())
+  facturaId String
+  factura   FacturaVenta @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  fecha     DateTime
+  evento    String
+  detalle   String?      @db.Text
+
+  @@index([facturaId])
+}
+
+model FacturaCompra {
+  id               String   @id @default(cuid())
+  folio            String   @unique
+  proveedor        String
+  fechaEmision     DateTime
+  fechaVencimiento DateTime
+  montoNeto        Int
+  iva              Int
+  montoTotal       Int
+  montoPagado      Int      @default(0)
+  estado           String   @default("Pendiente")
+  createdAt        DateTime @default(now())
+
+  pagos        PagoProveedor[]
+  notasCredito NotaCreditoCompra[]
+  bitacora     FacturaCompraBitacora[]
+}
+
+model PagoProveedor {
+  id        String        @id @default(cuid())
+  facturaId String
+  factura   FacturaCompra @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  fecha     DateTime
+  monto     Int
+  medioPago String
+  cuentaId  String?
+  createdAt DateTime      @default(now())
+
+  @@index([facturaId])
+}
+
+model NotaCreditoCompra {
+  id        String        @id @default(cuid())
+  folio     String        @unique
+  facturaId String
+  factura   FacturaCompra @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  fecha     DateTime
+  motivo    String
+  monto     Int
+  createdAt DateTime      @default(now())
+
+  @@index([facturaId])
+}
+
+model FacturaCompraBitacora {
+  id        String        @id @default(cuid())
+  facturaId String
+  factura   FacturaCompra @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  fecha     DateTime
+  evento    String
+  detalle   String?       @db.Text
+
+  @@index([facturaId])
+}

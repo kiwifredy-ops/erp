@@ -8,6 +8,7 @@ import { gastosRouter } from './routes/gastos.js';
 import { asistenciaRouter } from './routes/asistencia.js';
 import { flotaRouter } from './routes/flota.js';
 import { abastecimientoRouter } from './routes/abastecimiento.js';
+import { contabilidadRouter } from './routes/contabilidad.js';
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/gastos', gastosRouter);
 app.use('/api/asistencia', asistenciaRouter);
 app.use('/api/flota', flotaRouter);
 app.use('/api/abastecimiento', abastecimientoRouter);
+app.use('/api/contabilidad', contabilidadRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);
