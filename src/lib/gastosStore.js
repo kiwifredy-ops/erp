@@ -27,6 +27,11 @@ export function getRendiciones() {
   return api('/gastos/rendiciones');
 }
 
+// Autoservicio: solo las rendiciones enviadas por el usuario logueado.
+export function getMisRendiciones() {
+  return api('/gastos/rendiciones/mias');
+}
+
 export function crearRendicion(data) {
   return api('/gastos/rendiciones', { method: 'POST', body: data });
 }

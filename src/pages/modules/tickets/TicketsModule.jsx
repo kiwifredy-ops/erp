@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { getTickets, ESTADOS_TICKET } from '../../../lib/ticketsStore';
 import { getEmpleados } from '../../../lib/rrhhStore';
+import { puedeVer } from '../../../lib/authStore';
 import CreateTicketModal from './CreateTicketModal';
 import TicketDrawer from './TicketDrawer';
+import MisTicketsTab from './MisTicketsTab';
 
 const ESTADO_STYLES = {
   Abierto: 'bg-slate-100 text-slate-600',
@@ -39,10 +41,13 @@ export default function TicketsModule() {
     }
   }
 
+  const vistaCompleta = puedeVer('tickets');
+
   useEffect(() => {
+    if (!vistaCompleta) return;
     refresh();
     getEmpleados().then((emps) => setTecnicos(emps.filter((e) => e.estado === 'Activo' && e.departamento === 'Operaciones / Técnica')));
-  }, []);
+  }, [vistaCompleta]);
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
@@ -60,6 +65,20 @@ export default function TicketsModule() {
     { label: 'En curso', value: tickets.filter((t) => t.estado === 'En curso').length },
     { label: 'Completados', value: tickets.filter((t) => t.estado === 'Completado').length },
   ];
+
+  // Sin el permiso de "ver" el módulo completo, cada técnico solo ve y
+  // ejecuta los tickets asignados a su propio nombre — no el resto.
+  if (!vistaCompleta) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Tickets de Servicio Técnico</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Tickets asignados a ti: inicio/fin con GPS, fotos y video, firma y encuesta del cliente.</p>
+        </div>
+        <MisTicketsTab />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

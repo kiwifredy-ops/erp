@@ -27,3 +27,21 @@ export function requirePermiso(moduloId, accion) {
     }
   };
 }
+
+// Pasa si el rol tiene CUALQUIERA de las acciones listadas. Se usa para
+// endpoints de autoservicio ("mis registros") a los que puede entrar tanto
+// quien tiene visibilidad completa como quien solo tiene un permiso de
+// autoservicio (crear/editar sin ver) — el propio endpoint se encarga de
+// acotar los datos a lo que corresponde.
+export function requireAlguno(moduloId, acciones) {
+  return async (req, res, next) => {
+    try {
+      for (const accion of acciones) {
+        if (await tienePermiso(req.user.rol, moduloId, accion)) return next();
+      }
+      return res.status(403).json({ error: 'No tienes permiso para realizar esta acción.' });
+    } catch (err) {
+      next(err);
+    }
+  };
+}

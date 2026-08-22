@@ -20,6 +20,11 @@ export function getTickets() {
   return api('/tickets');
 }
 
+// Autoservicio: solo los tickets asignados al técnico logueado.
+export function getMisTickets() {
+  return api('/tickets/mias');
+}
+
 export function crearTicket(data) {
   return api('/tickets', { method: 'POST', body: data });
 }

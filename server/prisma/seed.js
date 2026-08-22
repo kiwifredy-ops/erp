@@ -374,6 +374,13 @@ const AUTOSERVICIO = { puedeVer: true, puedeCrear: true, puedeEditar: true, pued
 // únicamente su propia entrada/salida, sin visibilidad del resto del
 // personal. Es el default para todos los roles salvo Administrador y RRHH.
 const AUTOSERVICIO_PROPIO = { puedeVer: false, puedeCrear: true, puedeEditar: true, puedeEliminar: false };
+// Autoservicio de Rendición de Gastos: puede enviar sus propias rendiciones
+// pero no ve las de otros ni puede aprobarlas/pagarlas (eso requiere "ver").
+const AUTOSERVICIO_GASTOS = { puedeVer: false, puedeCrear: true, puedeEditar: false, puedeEliminar: false };
+// Autoservicio de Tickets/Flota: puede ejecutar el trabajo ya asignado a su
+// nombre (iniciar/finalizar servicio, registrar mantención de su vehículo)
+// pero no ve el resto ni puede asignar, reasignar o cerrar/cancelar.
+const AUTOSERVICIO_ASIGNADO = { puedeVer: false, puedeCrear: false, puedeEditar: true, puedeEliminar: false };
 
 const TODOS_LOS_MODULOS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes', 'usuarios'];
 
@@ -387,7 +394,7 @@ const PERMISOS_POR_ROL = {
   RRHH: { rrhh: TODO, asistencia: AUTOSERVICIO },
   'Jefe de Almacén': { almacen: TODO, abastecimiento: TODO, asistencia: AUTOSERVICIO_PROPIO },
   'Supervisor de Operaciones': { tickets: TODO, flota: TODO, clientes: VER_EDITAR, rrhh: SOLO_VER, asistencia: AUTOSERVICIO_PROPIO },
-  'Técnico de Campo': { tickets: VER_EDITAR, gastos: TODO, asistencia: AUTOSERVICIO_PROPIO },
+  'Técnico de Campo': { tickets: AUTOSERVICIO_ASIGNADO, gastos: AUTOSERVICIO_GASTOS, flota: AUTOSERVICIO_ASIGNADO, asistencia: AUTOSERVICIO_PROPIO },
   Finanzas: { contabilidad: TODO, gastos: SOLO_VER, abastecimiento: SOLO_VER, clientes: SOLO_VER, asistencia: AUTOSERVICIO_PROPIO },
 };
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, History, Receipt, Paperclip } from 'lucide-react';
 import { getTotal, getNextEstados, cambiarEstadoRendicion, getComprobante } from '../../../lib/gastosStore';
+import { puedeEditar } from '../../../lib/authStore';
 import { formatCLP, ESTADO_STYLES } from './GastosModule';
 
 export default function RendicionDrawer({ rendicion, onClose, onChanged }) {
@@ -96,7 +97,7 @@ export default function RendicionDrawer({ rendicion, onClose, onChanged }) {
             </ul>
           </div>
 
-          {nextEstados.length > 0 && (
+          {puedeEditar('gastos') && nextEstados.length > 0 && (
             <form onSubmit={handleSubmit} className="space-y-2 border border-slate-200 rounded-lg p-4">
               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Actualizar estado</p>
               <select value={nuevoEstado} onChange={(e) => setNuevoEstado(e.target.value)} className="input">

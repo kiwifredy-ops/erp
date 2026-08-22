@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
-import { requirePermiso } from '../middleware/permisos.js';
+import { requirePermiso, requireAlguno, tienePermiso } from '../middleware/permisos.js';
 
 export const flotaRouter = Router();
 flotaRouter.use(requireAuth);
@@ -9,6 +9,7 @@ flotaRouter.use(requireAuth);
 const V = requirePermiso('flota', 'ver');
 const C = requirePermiso('flota', 'crear');
 const E = requirePermiso('flota', 'editar');
+const VoE = requireAlguno('flota', ['ver', 'editar']);
 
 const NEXT_ESTADO = {
   Disponible: ['Asignado', 'En mantención', 'Fuera de servicio'],
@@ -19,6 +20,16 @@ const NEXT_ESTADO = {
 
 flotaRouter.get('/vehiculos', V, async (req, res) => {
   const vehiculos = await prisma.vehiculo.findMany({
+    include: { bitacora: { orderBy: { fecha: 'asc' } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(vehiculos);
+});
+
+// Autoservicio: solo el/los vehículo(s) asignados al usuario logueado.
+flotaRouter.get('/vehiculos/mios', VoE, async (req, res) => {
+  const vehiculos = await prisma.vehiculo.findMany({
+    where: { tecnico: req.user.nombre },
     include: { bitacora: { orderBy: { fecha: 'asc' } } },
     orderBy: { createdAt: 'desc' },
   });
@@ -69,7 +80,9 @@ flotaRouter.post('/vehiculos', C, async (req, res) => {
   res.status(201).json(vehiculo);
 });
 
-flotaRouter.patch('/vehiculos/:id', E, async (req, res) => {
+// Editar documentación, (re)asignar y cambiar estado son acciones de
+// gestión de flota, no de autoservicio — reservadas a quien tiene "ver".
+flotaRouter.patch('/vehiculos/:id', V, async (req, res) => {
   const data = {};
   for (const doc of DOCS_VEHICULO) {
     if (req.body[doc.campo] !== undefined) data[doc.campo] = req.body[doc.campo] ? new Date(req.body[doc.campo]) : null;
@@ -82,7 +95,7 @@ flotaRouter.patch('/vehiculos/:id', E, async (req, res) => {
   res.json(vehiculo);
 });
 
-flotaRouter.post('/vehiculos/:id/asignar', E, async (req, res) => {
+flotaRouter.post('/vehiculos/:id/asignar', V, async (req, res) => {
   const { tecnico } = req.body;
   const vehiculo = await prisma.vehiculo.update({
     where: { id: req.params.id },
@@ -96,7 +109,7 @@ flotaRouter.post('/vehiculos/:id/asignar', E, async (req, res) => {
   res.json(vehiculo);
 });
 
-flotaRouter.post('/vehiculos/:id/estado', E, async (req, res) => {
+flotaRouter.post('/vehiculos/:id/estado', V, async (req, res) => {
   const { estado, motivo } = req.body;
   const before = await prisma.vehiculo.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Vehículo no encontrado' });
@@ -116,8 +129,15 @@ flotaRouter.post('/vehiculos/:id/estado', E, async (req, res) => {
   res.json(vehiculo);
 });
 
+// Autoservicio permitido: quien tiene "editar" sin "ver" solo puede
+// registrar mantención del vehículo que tiene asignado a su propio nombre.
 flotaRouter.post('/vehiculos/:id/mantencion', E, async (req, res) => {
   const { kilometraje, detalle } = req.body;
+  const before = await prisma.vehiculo.findUnique({ where: { id: req.params.id } });
+  if (!before) return res.status(404).json({ error: 'Vehículo no encontrado' });
+  if (!(await tienePermiso(req.user.rol, 'flota', 'ver')) && before.tecnico !== req.user.nombre) {
+    return res.status(403).json({ error: 'Solo puedes registrar mantención del vehículo asignado a ti.' });
+  }
   const km = Number(kilometraje);
   const vehiculo = await prisma.vehiculo.update({
     where: { id: req.params.id },

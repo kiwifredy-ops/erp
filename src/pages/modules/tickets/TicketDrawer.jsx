@@ -17,13 +17,18 @@ import {
 } from '../../../lib/ticketsStore';
 import { ESTADO_STYLES, PRIORIDAD_STYLES } from './TicketsModule';
 import SignaturePad from './SignaturePad';
+import { puedeVer } from '../../../lib/authStore';
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20MB
 
-export default function TicketDrawer({ ticket, tecnicos, onClose, onChanged }) {
+export default function TicketDrawer({ ticket, tecnicos = [], onClose, onChanged }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const nextEstados = getNextEstados(ticket.estado);
+  // Cerrar, cancelar y (re)asignar son acciones de mesa de ayuda/gestión —
+  // en la vista de autoservicio del técnico no se muestran, aunque el
+  // backend igual las bloquearía si se intentaran.
+  const esGestion = puedeVer('tickets');
 
   async function withSaving(fn) {
     setError('');
@@ -104,7 +109,7 @@ export default function TicketDrawer({ ticket, tecnicos, onClose, onChanged }) {
             <p className="text-slate-700">{ticket.descripcion}</p>
           </div>
 
-          {ticket.estado === 'Abierto' && (
+          {esGestion && ticket.estado === 'Abierto' && (
             <form onSubmit={handleAsignar} className="border border-slate-200 rounded-lg p-4 space-y-2">
               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Asignar técnico</p>
               <select name="tecnico" required className="input">
@@ -210,13 +215,13 @@ export default function TicketDrawer({ ticket, tecnicos, onClose, onChanged }) {
             </div>
           )}
 
-          {ticket.estado === 'Completado' && (
+          {esGestion && ticket.estado === 'Completado' && (
             <button onClick={handleCerrar} disabled={saving} className="w-full bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 text-white text-sm font-medium rounded-md py-2">
               {saving ? 'Guardando...' : 'Cerrar ticket'}
             </button>
           )}
 
-          {nextEstados.includes('Cancelado') && (
+          {esGestion && nextEstados.includes('Cancelado') && (
             <button onClick={handleCancelar} disabled={saving} className="w-full text-xs font-medium text-red-600 border border-red-200 rounded-md py-1.5 hover:bg-red-50">
               Cancelar ticket
             </button>
@@ -265,6 +270,7 @@ function ArchivosSection({ ticket, onChanged }) {
   const [saving, setSaving] = useState(false);
   const [viewingId, setViewingId] = useState(null);
   const archivos = ticket.archivos ?? [];
+  const esGestion = puedeVer('tickets');
 
   async function handleFile(e) {
     const file = e.target.files?.[0];
@@ -330,9 +336,11 @@ function ArchivosSection({ ticket, onChanged }) {
                 <button onClick={() => handleView(a.id)} disabled={viewingId === a.id} className="text-slate-500 hover:text-sky-700 p-1">
                   <Eye className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => handleDelete(a.id)} className="text-red-500 hover:text-red-700 p-1">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {esGestion && (
+                  <button onClick={() => handleDelete(a.id)} className="text-red-500 hover:text-red-700 p-1">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </li>
           ))}

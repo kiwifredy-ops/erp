@@ -14,8 +14,8 @@ const emptyLinea = () => ({
 
 const MAX_BYTES = 6 * 1024 * 1024;
 
-export default function RendicionModal({ empleados, onClose, onCreated }) {
-  const [tecnico, setTecnico] = useState(empleados[0]?.nombre ?? '');
+export default function RendicionModal({ empleados = [], fixedTecnico, onClose, onCreated }) {
+  const [tecnico, setTecnico] = useState(fixedTecnico ?? empleados[0]?.nombre ?? '');
   const [lineas, setLineas] = useState([emptyLinea()]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -79,12 +79,19 @@ export default function RendicionModal({ empleados, onClose, onCreated }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <label className="block">
-            <span className="block text-xs font-medium text-slate-600 mb-1">Técnico</span>
-            <select value={tecnico} onChange={(e) => setTecnico(e.target.value)} className="input">
-              {empleados.map((e) => <option key={e.id} value={e.nombre}>{e.nombre}</option>)}
-            </select>
-          </label>
+          {fixedTecnico ? (
+            <div>
+              <span className="block text-xs font-medium text-slate-600 mb-1">Técnico</span>
+              <p className="text-sm text-slate-800">{fixedTecnico}</p>
+            </div>
+          ) : (
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Técnico</span>
+              <select value={tecnico} onChange={(e) => setTecnico(e.target.value)} className="input">
+                {empleados.map((e) => <option key={e.id} value={e.nombre}>{e.nombre}</option>)}
+              </select>
+            </label>
+          )}
 
           <div className="space-y-3">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Ítems de gasto</p>

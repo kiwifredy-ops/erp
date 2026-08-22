@@ -18,6 +18,11 @@ export function getVehiculos() {
   return api('/flota/vehiculos');
 }
 
+// Autoservicio: solo el/los vehículo(s) asignados al usuario logueado.
+export function getMisVehiculos() {
+  return api('/flota/vehiculos/mios');
+}
+
 export function getAlertasDocumentos() {
   return api('/flota/vehiculos/alertas');
 }

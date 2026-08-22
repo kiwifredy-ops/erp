@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
-import { requirePermiso } from '../middleware/permisos.js';
+import { requirePermiso, requireAlguno, tienePermiso } from '../middleware/permisos.js';
 
 export const ticketsRouter = Router();
 ticketsRouter.use(requireAuth);
@@ -10,6 +10,17 @@ const V = requirePermiso('tickets', 'ver');
 const C = requirePermiso('tickets', 'crear');
 const E = requirePermiso('tickets', 'editar');
 const D = requirePermiso('tickets', 'eliminar');
+const VoE = requireAlguno('tickets', ['ver', 'editar']);
+
+// Sin "ver" (visibilidad completa), solo se puede actuar sobre tickets
+// asignados al propio usuario — evita que un técnico opere sobre el
+// trabajo de otro aunque tenga el flag "editar".
+async function esPropioOGestion(req, res, ticket) {
+  if (await tienePermiso(req.user.rol, 'tickets', 'ver')) return true;
+  if (ticket.tecnico === req.user.nombre) return true;
+  res.status(403).json({ error: 'Solo puedes actuar sobre tickets asignados a ti.' });
+  return false;
+}
 
 const NEXT_ESTADO = {
   Abierto: ['Asignado', 'Cancelado'],
@@ -37,6 +48,12 @@ ticketsRouter.get('/', V, async (req, res) => {
   res.json(tickets);
 });
 
+// Autoservicio: solo los tickets asignados al técnico logueado.
+ticketsRouter.get('/mias', VoE, async (req, res) => {
+  const tickets = await prisma.ticket.findMany({ where: { tecnico: req.user.nombre }, include: INCLUDE, orderBy: { createdAt: 'desc' } });
+  res.json(tickets);
+});
+
 ticketsRouter.post('/', C, async (req, res) => {
   const { cliente, clienteId, direccion, descripcion, prioridad } = req.body;
   const folio = await nextFolio();
@@ -55,7 +72,9 @@ ticketsRouter.post('/', C, async (req, res) => {
   res.status(201).json(ticket);
 });
 
-ticketsRouter.post('/:id/asignar', E, async (req, res) => {
+// Asignar, cerrar y cancelar son acciones de mesa de ayuda/gestión, no de
+// autoservicio — reservadas a quien tiene "ver".
+ticketsRouter.post('/:id/asignar', V, async (req, res) => {
   const { tecnico } = req.body;
   const before = await prisma.ticket.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Ticket no encontrado' });
@@ -79,6 +98,7 @@ ticketsRouter.post('/:id/iniciar', E, async (req, res) => {
   const { lat, lng } = req.body;
   const before = await prisma.ticket.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Ticket no encontrado' });
+  if (!(await esPropioOGestion(req, res, before))) return;
   if (before.estado !== 'Asignado') return res.status(400).json({ error: `No se puede iniciar un ticket en estado ${before.estado}` });
 
   const ticket = await prisma.ticket.update({
@@ -105,6 +125,7 @@ ticketsRouter.post('/:id/finalizar', E, async (req, res) => {
   const { lat, lng, observaciones } = req.body;
   const before = await prisma.ticket.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Ticket no encontrado' });
+  if (!(await esPropioOGestion(req, res, before))) return;
   if (before.estado !== 'En curso') return res.status(400).json({ error: `No se puede finalizar un ticket en estado ${before.estado}` });
 
   const ticket = await prisma.ticket.update({
@@ -133,6 +154,7 @@ ticketsRouter.post('/:id/firma', E, async (req, res) => {
   if (!firma) return res.status(400).json({ error: 'Falta la firma' });
   const before = await prisma.ticket.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Ticket no encontrado' });
+  if (!(await esPropioOGestion(req, res, before))) return;
   if (before.estado !== 'Completado') return res.status(400).json({ error: 'El ticket debe estar completado para firmar' });
 
   const ticket = await prisma.ticket.update({
@@ -147,6 +169,7 @@ ticketsRouter.post('/:id/encuesta', E, async (req, res) => {
   const { calificacion, comentario } = req.body;
   const before = await prisma.ticket.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Ticket no encontrado' });
+  if (!(await esPropioOGestion(req, res, before))) return;
 
   await prisma.encuestaSatisfaccion.upsert({
     where: { ticketId: req.params.id },
@@ -161,7 +184,7 @@ ticketsRouter.post('/:id/encuesta', E, async (req, res) => {
   res.status(201).json(ticket);
 });
 
-ticketsRouter.post('/:id/cerrar', E, async (req, res) => {
+ticketsRouter.post('/:id/cerrar', V, async (req, res) => {
   const before = await prisma.ticket.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Ticket no encontrado' });
   if (before.estado !== 'Completado') return res.status(400).json({ error: 'Solo se pueden cerrar tickets completados' });
@@ -174,7 +197,7 @@ ticketsRouter.post('/:id/cerrar', E, async (req, res) => {
   res.json(ticket);
 });
 
-ticketsRouter.post('/:id/cancelar', E, async (req, res) => {
+ticketsRouter.post('/:id/cancelar', V, async (req, res) => {
   const { motivo } = req.body;
   const before = await prisma.ticket.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Ticket no encontrado' });
@@ -199,6 +222,7 @@ ticketsRouter.post('/:id/archivos', E, async (req, res) => {
   }
   const ticket = await prisma.ticket.findUnique({ where: { id: req.params.id } });
   if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+  if (!(await esPropioOGestion(req, res, ticket))) return;
 
   await prisma.ticketArchivo.create({ data: { ticketId: req.params.id, tipo, nombreArchivo, mimeType, contenido } });
   await prisma.ticketBitacora.create({ data: { ticketId: req.params.id, fecha: new Date(), evento: `${tipo} adjuntado`, detalle: nombreArchivo } });
@@ -206,9 +230,11 @@ ticketsRouter.post('/:id/archivos', E, async (req, res) => {
   res.status(201).json(actualizado);
 });
 
-ticketsRouter.get('/:id/archivos/:archivoId', V, async (req, res) => {
+ticketsRouter.get('/:id/archivos/:archivoId', VoE, async (req, res) => {
   const archivo = await prisma.ticketArchivo.findFirst({ where: { id: req.params.archivoId, ticketId: req.params.id } });
   if (!archivo) return res.status(404).json({ error: 'Archivo no encontrado' });
+  const ticket = await prisma.ticket.findUnique({ where: { id: req.params.id } });
+  if (!(await esPropioOGestion(req, res, ticket ?? { tecnico: null }))) return;
   res.json(archivo);
 });
 

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import VehiculosTab from './VehiculosTab';
 import MantencionesTab from './MantencionesTab';
+import MiVehiculoTab from './MiVehiculoTab';
+import { puedeVer } from '../../../lib/authStore';
 
 const TABS = [
   { id: 'vehiculos', label: 'Vehículos' },
@@ -9,6 +11,20 @@ const TABS = [
 
 export default function FlotaModule() {
   const [tab, setTab] = useState('vehiculos');
+
+  // Sin el permiso de "ver" el módulo completo, cada usuario solo ve el o
+  // los vehículos asignados a su propio nombre — no la flota completa.
+  if (!puedeVer('flota')) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Flota de Vehículos</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Vehículo(s) asignados a ti.</p>
+        </div>
+        <MiVehiculoTab />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

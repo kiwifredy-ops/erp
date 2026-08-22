@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { getRendiciones, getTotal, ESTADOS_RENDICION } from '../../../lib/gastosStore';
 import { getEmpleados } from '../../../lib/rrhhStore';
+import { puedeVer } from '../../../lib/authStore';
 import RendicionModal from './RendicionModal';
 import RendicionDrawer from './RendicionDrawer';
+import MisRendicionesTab from './MisRendicionesTab';
 
 const ESTADO_STYLES = {
   Enviada: 'bg-slate-100 text-slate-600',
@@ -33,10 +35,13 @@ export default function GastosModule() {
     }
   }
 
+  const vistaCompleta = puedeVer('gastos');
+
   useEffect(() => {
+    if (!vistaCompleta) return;
     refresh();
     getEmpleados().then((emps) => setEmpleados(emps.filter((e) => e.estado === 'Activo')));
-  }, []);
+  }, [vistaCompleta]);
 
   const tecnicos = [...new Set(rendiciones.map((r) => r.tecnico))];
   const filtered = rendiciones.filter((r) => {
@@ -48,6 +53,20 @@ export default function GastosModule() {
 
   const pendientes = rendiciones.filter((r) => ['Enviada', 'En revisión'].includes(r.estado)).length;
   const totalMes = rendiciones.reduce((sum, r) => sum + getTotal(r), 0);
+
+  // Sin el permiso de "ver" el módulo completo, cada usuario solo puede
+  // enviar y consultar sus propias rendiciones — no ve las de nadie más.
+  if (!vistaCompleta) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Rendición de Gastos</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Envía y revisa tus propias rendiciones de gastos.</p>
+        </div>
+        <MisRendicionesTab />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
