@@ -62,6 +62,7 @@ export default function ClientesModule() {
               <th className="text-left font-medium px-4 py-2.5">Contacto</th>
               <th className="text-left font-medium px-4 py-2.5">Tickets</th>
               <th className="text-left font-medium px-4 py-2.5">Facturas</th>
+              <th className="text-left font-medium px-4 py-2.5">Mantención</th>
               <th className="text-left font-medium px-4 py-2.5">Estado</th>
             </tr>
           </thead>
@@ -76,6 +77,7 @@ export default function ClientesModule() {
                 <td className="px-4 py-2.5 text-slate-600">{c.contactoNombre ?? '—'}</td>
                 <td className="px-4 py-2.5 text-slate-600">{c._count.tickets}</td>
                 <td className="px-4 py-2.5 text-slate-600">{c._count.facturasVenta}</td>
+                <td className="px-4 py-2.5 text-slate-600">{c._count.contratosMantencion}</td>
                 <td className="px-4 py-2.5">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${c.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                     {c.activo ? 'Activo' : 'Inactivo'}
@@ -84,7 +86,7 @@ export default function ClientesModule() {
               </tr>
             ))}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400 text-sm">Sin clientes que coincidan con la búsqueda.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400 text-sm">Sin clientes que coincidan con la búsqueda.</td></tr>
             )}
           </tbody>
         </table>

@@ -7,7 +7,7 @@ import { requirePermiso } from '../middleware/permisos.js';
 export const usuariosRouter = Router();
 usuariosRouter.use(requireAuth);
 
-const MODULO_IDS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes', 'usuarios'];
+const MODULO_IDS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes', 'usuarios', 'mantenimiento'];
 
 usuariosRouter.get('/', requirePermiso('usuarios', 'ver'), async (req, res) => {
   const usuarios = await prisma.usuario.findMany({

@@ -14,6 +14,7 @@ import ContabilidadModule from './pages/modules/contabilidad/ContabilidadModule'
 import TicketsModule from './pages/modules/tickets/TicketsModule';
 import ClientesModule from './pages/modules/clientes/ClientesModule';
 import UsuariosModule from './pages/modules/usuarios/UsuariosModule';
+import MantenimientoModule from './pages/modules/mantenimiento/MantenimientoModule';
 import { IMPLEMENTED_MODULES } from './lib/modules';
 import { tieneAcceso } from './lib/authStore';
 
@@ -28,6 +29,7 @@ const MODULE_COMPONENTS = {
   tickets: TicketsModule,
   clientes: ClientesModule,
   usuarios: UsuariosModule,
+  mantenimiento: MantenimientoModule,
 };
 
 function AccesoDenegado() {

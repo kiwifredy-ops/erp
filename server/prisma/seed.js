@@ -364,6 +364,122 @@ async function seedTickets(clienteIds) {
   }
 }
 
+async function seedMantenimiento(clienteIds) {
+  const existingContratos = await prisma.contratoMantencion.count();
+  if (existingContratos === 0) {
+    const contratos = [
+      {
+        cliente: 'Constructora Los Andes SpA',
+        tipoMantenimiento: 'Cámaras y CCTV',
+        periodicidad: 'Mensual',
+        fechaInicio: '2026-01-01',
+        fechaTermino: '2026-12-31',
+        valorMensual: 180000,
+        alcance: 'Revisión y limpieza de 12 cámaras domo IP, verificación de grabación NVR.',
+      },
+      {
+        cliente: 'Retail Sur S.A.',
+        tipoMantenimiento: 'Alarmas',
+        periodicidad: 'Trimestral',
+        fechaInicio: '2026-06-15',
+        fechaTermino: '2026-09-30',
+        valorMensual: 95000,
+        alcance: 'Revisión de central de alarma 8 zonas y sensores de movimiento perimetrales.',
+      },
+      {
+        cliente: 'Municipalidad de Providencia',
+        tipoMantenimiento: 'Control de Acceso',
+        periodicidad: 'Semestral',
+        fechaInicio: '2026-03-01',
+        fechaTermino: '2027-02-28',
+        valorMensual: 140000,
+        alcance: 'Mantención de panel de control de acceso y lectoras en accesos principales.',
+      },
+    ];
+    let nC = 1;
+    for (const c of contratos) {
+      await prisma.contratoMantencion.create({
+        data: {
+          folio: `CM${String(nC++).padStart(4, '0')}`,
+          clienteId: clienteIds[c.cliente] ?? null,
+          cliente: c.cliente,
+          tipoMantenimiento: c.tipoMantenimiento,
+          periodicidad: c.periodicidad,
+          fechaInicio: new Date(c.fechaInicio),
+          fechaTermino: new Date(c.fechaTermino),
+          valorMensual: c.valorMensual,
+          alcance: c.alcance,
+          bitacora: { create: [{ fecha: new Date(c.fechaInicio), evento: 'Contrato creado', detalle: `Vigencia ${c.fechaInicio} a ${c.fechaTermino}.` }] },
+        },
+      });
+    }
+  }
+
+  const existingVisitas = await prisma.visitaMantencion.count();
+  if (existingVisitas === 0) {
+    const contratoCamaras = await prisma.contratoMantencion.findFirst({ where: { cliente: 'Constructora Los Andes SpA' } });
+    const contratoAlarmas = await prisma.contratoMantencion.findFirst({ where: { cliente: 'Retail Sur S.A.' } });
+
+    const visitas = [
+      {
+        contratoId: contratoCamaras?.id ?? null,
+        cliente: 'Constructora Los Andes SpA',
+        direccion: 'Av. Apoquindo 4500, Las Condes',
+        tipoMantenimiento: 'Cámaras y CCTV',
+        tecnico: 'Pablo Contreras',
+        fechaProgramada: '2026-09-28',
+        estado: 'Programada',
+      },
+      {
+        contratoId: contratoAlarmas?.id ?? null,
+        cliente: 'Retail Sur S.A.',
+        direccion: 'Camino a Melipilla 8200, Maipú',
+        tipoMantenimiento: 'Alarmas',
+        tecnico: 'Rodrigo Fuentes',
+        fechaProgramada: '2026-08-10',
+        fechaRealizada: '2026-08-10',
+        estado: 'Realizada',
+        observaciones: 'Se reemplazaron 2 sensores de movimiento con falla intermitente.',
+      },
+      {
+        contratoId: null,
+        cliente: 'Retail Sur S.A.',
+        direccion: 'Camino a Melipilla 8200, Maipú',
+        tipoMantenimiento: 'Cercos eléctricos',
+        tecnico: null,
+        fechaProgramada: '2026-09-05',
+        estado: 'Programada',
+      },
+    ];
+
+    let nV = 1;
+    for (const v of visitas) {
+      await prisma.visitaMantencion.create({
+        data: {
+          folio: `VM${String(nV++).padStart(4, '0')}`,
+          contratoId: v.contratoId,
+          clienteId: clienteIds[v.cliente] ?? null,
+          cliente: v.cliente,
+          direccion: v.direccion,
+          tipoMantenimiento: v.tipoMantenimiento,
+          tecnico: v.tecnico,
+          fechaProgramada: new Date(v.fechaProgramada),
+          fechaRealizada: v.fechaRealizada ? new Date(v.fechaRealizada) : null,
+          estado: v.estado,
+          observaciones: v.observaciones || null,
+          bitacora: {
+            create: [
+              { fecha: new Date(v.fechaProgramada), evento: 'Visita programada', detalle: v.contratoId ? 'Generada desde un contrato de mantención.' : 'Servicio puntual, sin contrato.' },
+              ...(v.tecnico ? [{ fecha: new Date(v.fechaProgramada), evento: 'Técnico asignado', detalle: `Asignado a ${v.tecnico}.` }] : []),
+              ...(v.estado === 'Realizada' ? [{ fecha: new Date(v.fechaRealizada), evento: 'Servicio completado', detalle: v.observaciones || '—' }] : []),
+            ],
+          },
+        },
+      });
+    }
+  }
+}
+
 const TODO = { puedeVer: true, puedeCrear: true, puedeEditar: true, puedeEliminar: true };
 const SOLO_VER = { puedeVer: true, puedeCrear: false, puedeEditar: false, puedeEliminar: false };
 const VER_EDITAR = { puedeVer: true, puedeCrear: false, puedeEditar: true, puedeEliminar: false };
@@ -382,7 +498,7 @@ const AUTOSERVICIO_GASTOS = { puedeVer: false, puedeCrear: true, puedeEditar: fa
 // pero no ve el resto ni puede asignar, reasignar o cerrar/cancelar.
 const AUTOSERVICIO_ASIGNADO = { puedeVer: false, puedeCrear: false, puedeEditar: true, puedeEliminar: false };
 
-const TODOS_LOS_MODULOS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes', 'usuarios'];
+const TODOS_LOS_MODULOS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes', 'usuarios', 'mantenimiento'];
 
 // Matriz de permisos por defecto — el administrador puede reconfigurar todo
 // esto libremente después desde el módulo de Usuarios. Todos los roles
@@ -393,8 +509,8 @@ const PERMISOS_POR_ROL = {
   'Gerencia General': { ...Object.fromEntries(TODOS_LOS_MODULOS.map((m) => [m, SOLO_VER])), asistencia: AUTOSERVICIO_PROPIO },
   RRHH: { rrhh: TODO, asistencia: AUTOSERVICIO },
   'Jefe de Almacén': { almacen: TODO, abastecimiento: TODO, asistencia: AUTOSERVICIO_PROPIO },
-  'Supervisor de Operaciones': { tickets: TODO, flota: TODO, clientes: VER_EDITAR, rrhh: SOLO_VER, asistencia: AUTOSERVICIO_PROPIO },
-  'Técnico de Campo': { tickets: AUTOSERVICIO_ASIGNADO, gastos: AUTOSERVICIO_GASTOS, flota: AUTOSERVICIO_ASIGNADO, asistencia: AUTOSERVICIO_PROPIO },
+  'Supervisor de Operaciones': { tickets: TODO, flota: TODO, mantenimiento: TODO, clientes: VER_EDITAR, rrhh: SOLO_VER, asistencia: AUTOSERVICIO_PROPIO },
+  'Técnico de Campo': { tickets: AUTOSERVICIO_ASIGNADO, gastos: AUTOSERVICIO_GASTOS, flota: AUTOSERVICIO_ASIGNADO, mantenimiento: AUTOSERVICIO_ASIGNADO, asistencia: AUTOSERVICIO_PROPIO },
   Finanzas: { contabilidad: TODO, gastos: SOLO_VER, abastecimiento: SOLO_VER, clientes: SOLO_VER, asistencia: AUTOSERVICIO_PROPIO },
 };
 
@@ -420,6 +536,7 @@ async function main() {
   const clienteIds = await seedClientes();
   await seedContabilidad(clienteIds);
   await seedTickets(clienteIds);
+  await seedMantenimiento(clienteIds);
   await seedPermisos();
   console.log(`Seed completo. Usuarios demo, contraseña: ${DEMO_PASSWORD}`);
 }

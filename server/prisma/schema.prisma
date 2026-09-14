@@ -550,8 +550,85 @@ model Cliente {
   activo          Boolean  @default(true)
   createdAt       DateTime @default(now())
 
-  tickets       Ticket[]
-  facturasVenta FacturaVenta[]
+  tickets             Ticket[]
+  facturasVenta       FacturaVenta[]
+  contratosMantencion ContratoMantencion[]
+  visitasMantencion   VisitaMantencion[]
+}
+
+// --- Mantenimiento -----------------------------------------------------
+//
+// Control de servicios de mantención de sistemas de seguridad en los
+// clientes, tanto bajo contrato (con periodicidad y vigencia) como
+// puntuales/no contratados. Un ContratoMantencion agrupa la periodicidad y
+// la vigencia; cada VisitaMantencion es una fecha concreta de la agenda —
+// generada a partir de un contrato o creada suelta para un servicio
+// puntual sin contrato.
+
+model ContratoMantencion {
+  id                String   @id @default(cuid())
+  folio             String   @unique
+  clienteId         String?
+  clienteRef        Cliente? @relation(fields: [clienteId], references: [id])
+  cliente           String
+  tipoMantenimiento String // Cámaras y CCTV | Alarmas | Control de Acceso | Cercos eléctricos | Integral | Otro
+  periodicidad      String // Mensual | Bimestral | Trimestral | Semestral | Anual
+  fechaInicio       DateTime
+  fechaTermino      DateTime
+  estado            String   @default("Activo") // Activo | Cancelado — "vencido" se calcula desde fechaTermino, no se almacena
+  valorMensual      Int?
+  alcance           String?  @db.Text
+  createdAt         DateTime @default(now())
+
+  visitas  VisitaMantencion[]
+  bitacora ContratoMantencionBitacora[]
+
+  @@index([clienteId])
+}
+
+model ContratoMantencionBitacora {
+  id         String             @id @default(cuid())
+  contratoId String
+  contrato   ContratoMantencion @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  fecha      DateTime
+  evento     String
+  detalle    String?            @db.Text
+
+  @@index([contratoId])
+}
+
+model VisitaMantencion {
+  id                String              @id @default(cuid())
+  folio             String              @unique
+  contratoId        String?
+  contrato          ContratoMantencion? @relation(fields: [contratoId], references: [id])
+  clienteId         String?
+  clienteRef        Cliente?            @relation(fields: [clienteId], references: [id])
+  cliente           String
+  direccion         String
+  tipoMantenimiento String
+  tecnico           String?
+  fechaProgramada   DateTime
+  fechaRealizada    DateTime?
+  estado            String              @default("Programada") // Programada | En curso | Realizada | Cancelada
+  observaciones     String?             @db.Text
+  createdAt         DateTime            @default(now())
+
+  bitacora VisitaMantencionBitacora[]
+
+  @@index([contratoId])
+  @@index([clienteId])
+}
+
+model VisitaMantencionBitacora {
+  id       String           @id @default(cuid())
+  visitaId String
+  visita   VisitaMantencion @relation(fields: [visitaId], references: [id], onDelete: Cascade)
+  fecha    DateTime
+  evento   String
+  detalle  String?          @db.Text
+
+  @@index([visitaId])
 }
 
 // --- Usuarios y Permisos ----------------------------------------------------

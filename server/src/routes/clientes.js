@@ -12,7 +12,7 @@ const E = requirePermiso('clientes', 'editar');
 
 clientesRouter.get('/', V, async (req, res) => {
   const clientes = await prisma.cliente.findMany({
-    include: { _count: { select: { tickets: true, facturasVenta: true } } },
+    include: { _count: { select: { tickets: true, facturasVenta: true, contratosMantencion: true } } },
     orderBy: { nombre: 'asc' },
   });
   res.json(clientes);
@@ -24,6 +24,7 @@ clientesRouter.get('/:id', V, async (req, res) => {
     include: {
       tickets: { orderBy: { createdAt: 'desc' }, select: { id: true, folio: true, descripcion: true, estado: true, createdAt: true } },
       facturasVenta: { orderBy: { createdAt: 'desc' }, select: { id: true, folio: true, montoTotal: true, estado: true, fechaEmision: true } },
+      contratosMantencion: { orderBy: { createdAt: 'desc' }, select: { id: true, folio: true, tipoMantenimiento: true, periodicidad: true, fechaTermino: true, estado: true } },
     },
   });
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
@@ -34,7 +35,7 @@ clientesRouter.post('/', C, async (req, res) => {
   const { tipo, nombre, rut, direccion, comuna, ciudad, telefono, email, contactoNombre, contactoCargo, contactoTelefono, notas } = req.body;
   const cliente = await prisma.cliente.create({
     data: { tipo, nombre, rut: rut || null, direccion, comuna, ciudad, telefono, email, contactoNombre, contactoCargo, contactoTelefono, notas },
-    include: { _count: { select: { tickets: true, facturasVenta: true } } },
+    include: { _count: { select: { tickets: true, facturasVenta: true, contratosMantencion: true } } },
   });
   res.status(201).json(cliente);
 });

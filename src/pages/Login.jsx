@@ -3,17 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { login } from '../lib/authStore';
 
-const DEMO_USERS = [
-  'admin@empresa.com',
-  'carolina.reyes@empresa.com',
-  'marcelo.soto@empresa.com',
-  'fernanda.vidal@empresa.com',
-  'diego.herrera@empresa.com',
-  'pablo.contreras@empresa.com',
-  'gerencia@empresa.com',
-];
-const DEMO_PASSWORD = 'Demo2026!';
-
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -78,23 +67,6 @@ export default function Login() {
             {loading ? 'Ingresando...' : 'Iniciar sesión'}
           </button>
         </form>
-
-        <div className="mt-6 pt-4 border-t border-slate-100">
-          <p className="text-[11px] font-medium text-slate-500 mb-2">Usuarios de ejemplo (contraseña: {DEMO_PASSWORD})</p>
-          <ul className="space-y-1 max-h-32 overflow-y-auto pr-1">
-            {DEMO_USERS.map((u) => (
-              <li key={u}>
-                <button
-                  type="button"
-                  onClick={() => { setEmail(u); setPassword(DEMO_PASSWORD); }}
-                  className="text-[11px] text-sky-700 hover:underline"
-                >
-                  {u}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import { contabilidadRouter } from './routes/contabilidad.js';
 import { ticketsRouter } from './routes/tickets.js';
 import { clientesRouter } from './routes/clientes.js';
 import { usuariosRouter } from './routes/usuarios.js';
+import { mantenimientoRouter } from './routes/mantenimiento.js';
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/contabilidad', contabilidadRouter);
 app.use('/api/tickets', ticketsRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/usuarios', usuariosRouter);
+app.use('/api/mantenimiento', mantenimientoRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);
