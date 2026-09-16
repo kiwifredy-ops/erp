@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, ShieldCheck, X } from 'lucide-react';
 import { MODULES } from '../../lib/modules';
-import { tieneAcceso } from '../../lib/authStore';
+import { tieneAcceso, getEmpresaInfo } from '../../lib/authStore';
 
 function NavContent({ visibles, onNavigate }) {
   return (
@@ -47,12 +47,17 @@ function NavContent({ visibles, onNavigate }) {
 }
 
 function Brand() {
+  const empresa = getEmpresaInfo();
   return (
     <div className="flex items-center gap-2 px-5 py-5 border-b border-slate-800 shrink-0">
-      <ShieldCheck className="w-6 h-6 text-sky-400 shrink-0" />
+      {empresa?.logo ? (
+        <img src={empresa.logo} alt={empresa.nombre} className="w-7 h-7 rounded object-contain bg-white shrink-0" />
+      ) : (
+        <ShieldCheck className="w-6 h-6 text-sky-400 shrink-0" />
+      )}
       <div className="leading-tight min-w-0">
         <p className="text-sm font-semibold text-white truncate">ERP</p>
-        <p className="text-[11px] text-slate-400 truncate">Sistemas de Seguridad</p>
+        <p className="text-[11px] text-slate-400 truncate">Sistema de Gestión Empresarial</p>
       </div>
     </div>
   );

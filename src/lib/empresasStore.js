@@ -41,3 +41,16 @@ export function getModulosEmpresa(id) {
 export function toggleModuloEmpresa(id, moduloId, habilitado) {
   return apiPlataforma(`/empresas/${id}/modulos`, { method: 'PATCH', body: { moduloId, habilitado } });
 }
+
+export function actualizarLogoEmpresa(id, logo, logoMimeType) {
+  return apiPlataforma(`/empresas/${id}/logo`, { method: 'PATCH', body: { logo, logoMimeType } });
+}
+
+export function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}

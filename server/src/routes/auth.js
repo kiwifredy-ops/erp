@@ -59,10 +59,21 @@ authRouter.post('/login', async (req, res) => {
     getPermisos(tenantPrisma, usuario.rol),
     getModulosHabilitados(empresa.id),
   ]);
-  res.json({ token, usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol }, permisos, modulosHabilitados });
+  res.json({
+    token,
+    usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol },
+    permisos,
+    modulosHabilitados,
+    empresa: { nombre: empresa.nombre, logo: empresa.logo },
+  });
 });
 
 authRouter.get('/me', requireAuth, resolveTenant, async (req, res) => {
   const permisos = await getPermisos(req.prisma, req.user.rol);
-  res.json({ usuario: req.user, permisos, modulosHabilitados: [...req.empresaModulos] });
+  res.json({
+    usuario: req.user,
+    permisos,
+    modulosHabilitados: [...req.empresaModulos],
+    empresa: { nombre: req.empresa.nombre, logo: req.empresa.logo },
+  });
 });

@@ -30,9 +30,17 @@ plataformaRouter.post('/login', async (req, res) => {
 
 plataformaRouter.use(requireSuperAdmin);
 
+// El logo (base64) se excluye del listado a propósito — solo se pide en el
+// detalle de una empresa, para no inflar cada carga del listado completo.
+const EMPRESA_LIST_SELECT = {
+  id: true, nombre: true, slug: true, dbName: true, estado: true,
+  fechaAlta: true, fechaProximoPago: true, notas: true,
+  _count: { select: { usuarios: true } },
+};
+
 plataformaRouter.get('/empresas', async (req, res) => {
   const empresas = await prismaPlataforma.empresa.findMany({
-    include: { _count: { select: { usuarios: true } } },
+    select: EMPRESA_LIST_SELECT,
     orderBy: { fechaAlta: 'desc' },
   });
   res.json(empresas);
@@ -92,6 +100,18 @@ plataformaRouter.post('/empresas/:id/eliminar', async (req, res) => {
   await prismaPlataforma.usuarioIndex.deleteMany({ where: { empresaId: actualizada.id } });
   invalidateEmpresaCache(actualizada.id);
   res.json(actualizada);
+});
+
+// Se puede subir al crear la empresa (ver tenantProvisioning.js) o
+// cambiarlo después desde aquí — mismo enfoque base64 que el resto de la app.
+plataformaRouter.patch('/empresas/:id/logo', async (req, res) => {
+  const { logo, logoMimeType } = req.body;
+  const empresa = await prismaPlataforma.empresa.update({
+    where: { id: req.params.id },
+    data: { logo: logo || null, logoMimeType: logo ? logoMimeType || null : null },
+  });
+  invalidateEmpresaCache(empresa.id);
+  res.json(empresa);
 });
 
 // --- Módulos habilitados por plan --------------------------------------

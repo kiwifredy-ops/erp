@@ -26,6 +26,10 @@ model Empresa {
   fechaAlta        DateTime  @default(now())
   fechaProximoPago DateTime?
   notas            String?   @db.Text
+  // Logo de la empresa, como base64 (mismo enfoque que Documento en RRHH o
+  // TicketArchivo) — se muestra en el sidebar de su propia instancia del ERP.
+  logo             String?   @db.LongText
+  logoMimeType     String?
 
   usuarios UsuarioIndex[]
   modulos  EmpresaModulo[]

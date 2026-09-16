@@ -31,7 +31,7 @@ export default function Login() {
           <div className="w-12 h-12 rounded-lg bg-sky-500 flex items-center justify-center mb-3">
             <ShieldCheck className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-lg font-semibold text-slate-900">ERP · Sistemas de Seguridad</h1>
+          <h1 className="text-lg font-semibold text-slate-900">ERP Sistema de Gestión Empresarial</h1>
           <p className="text-sm text-slate-500 mt-1">Administración, almacén, gastos, asistencia, flota y abastecimiento.</p>
         </div>
 

@@ -65,6 +65,7 @@ export async function resolveTenant(req, res, next) {
     req.user.empresaId = empresaId;
     req.prisma = getTenantPrisma(empresa.dbName);
     req.empresaModulos = modulos;
+    req.empresa = { nombre: empresa.nombre, logo: empresa.logo, logoMimeType: empresa.logoMimeType };
     next();
   } catch (err) {
     next(err);

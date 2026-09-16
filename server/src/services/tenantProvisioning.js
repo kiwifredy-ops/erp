@@ -30,7 +30,7 @@ function errorHttp(mensaje, status) {
 // push" contra el schema real — nunca un dump estático que podría quedar
 // desactualizado), crea su usuario administrador y siembra los permisos por
 // defecto y los módulos incluidos en el plan elegido.
-export async function provisionEmpresa({ nombre, slug, adminNombre, adminEmail, adminPassword, modulos }) {
+export async function provisionEmpresa({ nombre, slug, adminNombre, adminEmail, adminPassword, modulos, logo, logoMimeType }) {
   if (!nombre || !slug || !adminNombre || !adminEmail || !adminPassword) {
     throw errorHttp('Faltan datos para crear la empresa.', 400);
   }
@@ -63,6 +63,8 @@ export async function provisionEmpresa({ nombre, slug, adminNombre, adminEmail, 
       slug,
       dbName,
       estado: 'Activa',
+      logo: logo || null,
+      logoMimeType: logo ? logoMimeType || null : null,
       modulos: { create: modulosElegidos.map((moduloId) => ({ moduloId, habilitado: true })) },
     },
   });

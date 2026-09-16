@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
-import { crearEmpresa } from '../../lib/empresasStore';
+import { X, Upload } from 'lucide-react';
+import { crearEmpresa, fileToBase64 } from '../../lib/empresasStore';
 import { MODULES } from '../../lib/modules';
+
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 function slugify(nombre) {
   return nombre
@@ -20,11 +22,25 @@ export default function CreateEmpresaModal({ onClose, onCreated }) {
     adminEmail: '',
     adminPassword: '',
     modulos: MODULES.map((m) => m.id),
+    logo: '',
+    logoMimeType: '',
   });
   const [slugTocado, setSlugTocado] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
+
+  async function handleLogo(file) {
+    if (!file) return;
+    if (file.size > MAX_LOGO_BYTES) {
+      setError('El logo supera los 2MB permitidos.');
+      return;
+    }
+    setError('');
+    const contenido = await fileToBase64(file);
+    set('logo', contenido);
+    set('logoMimeType', file.type || 'image/png');
+  }
 
   function handleNombre(value) {
     set('nombre', value);
@@ -80,6 +96,17 @@ export default function CreateEmpresaModal({ onClose, onCreated }) {
                 title="Minúsculas, números y guion bajo, entre 3 y 32 caracteres."
                 className="input font-mono"
               />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Logo (opcional — aparece en el sidebar de su ERP)</span>
+              <div className="flex items-center gap-3">
+                {form.logo && <img src={form.logo} alt="Logo" className="w-10 h-10 rounded object-contain bg-slate-50 border border-slate-200 shrink-0" />}
+                <label className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-sky-700 border border-dashed border-slate-300 hover:border-sky-400 rounded-md px-3 py-2 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" />
+                  {form.logo ? 'Cambiar logo' : 'Subir logo (máx. 2MB)'}
+                  <input type="file" accept="image/*" onChange={(e) => handleLogo(e.target.files?.[0])} className="hidden" />
+                </label>
+              </div>
             </label>
           </div>
 

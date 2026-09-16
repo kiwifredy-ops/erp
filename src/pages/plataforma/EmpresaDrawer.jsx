@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { X, Users, LayoutGrid, ShieldAlert, ShieldOff, ShieldCheck, Trash2 } from 'lucide-react';
+import { X, Users, LayoutGrid, ShieldAlert, ShieldOff, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import {
+  getEmpresa,
   getUsuariosEmpresa,
   getModulosEmpresa,
   toggleModuloEmpresa,
+  actualizarLogoEmpresa,
+  fileToBase64,
   bloquearEmpresa,
   suspenderEmpresa,
   reactivarEmpresa,
@@ -12,14 +15,18 @@ import {
 import { getModule } from '../../lib/modules';
 import { ESTADO_STYLES } from './EmpresasDashboard';
 
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
 export default function EmpresaDrawer({ empresa, onClose, onChanged }) {
+  const [detalle, setDetalle] = useState(empresa);
   const [usuarios, setUsuarios] = useState([]);
   const [modulos, setModulos] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState('');
 
   async function refresh() {
-    const [u, m] = await Promise.all([getUsuariosEmpresa(empresa.id), getModulosEmpresa(empresa.id)]);
+    const [d, u, m] = await Promise.all([getEmpresa(empresa.id), getUsuariosEmpresa(empresa.id), getModulosEmpresa(empresa.id)]);
+    setDetalle(d);
     setUsuarios(u);
     setModulos(m);
   }
@@ -27,6 +34,25 @@ export default function EmpresaDrawer({ empresa, onClose, onChanged }) {
   useEffect(() => {
     refresh();
   }, [empresa.id]);
+
+  async function handleLogo(file) {
+    if (!file) return;
+    if (file.size > MAX_LOGO_BYTES) {
+      setError('El logo supera los 2MB permitidos.');
+      return;
+    }
+    setError('');
+    setSaving('logo');
+    try {
+      const contenido = await fileToBase64(file);
+      setDetalle(await actualizarLogoEmpresa(empresa.id, contenido, file.type || 'image/png'));
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo guardar el logo.');
+    } finally {
+      setSaving('');
+    }
+  }
 
   async function handleAccion(fn, confirmacion) {
     if (confirmacion && !confirm(confirmacion)) return;
@@ -60,15 +86,24 @@ export default function EmpresaDrawer({ empresa, onClose, onChanged }) {
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative w-full max-w-md bg-white h-full shadow-xl overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 sticky top-0 bg-white">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-800">{empresa.nombre}</h2>
-            <p className="text-xs text-slate-500 font-mono">{empresa.slug}</p>
+          <div className="flex items-center gap-2.5 min-w-0">
+            {detalle?.logo && <img src={detalle.logo} alt={empresa.nombre} className="w-8 h-8 rounded object-contain bg-slate-50 border border-slate-200 shrink-0" />}
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-slate-800 truncate">{empresa.nombre}</h2>
+              <p className="text-xs text-slate-500 font-mono truncate">{empresa.slug}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="w-4.5 h-4.5" /></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 shrink-0"><X className="w-4.5 h-4.5" /></button>
         </div>
 
         <div className="p-5 space-y-5">
           <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${ESTADO_STYLES[empresa.estado] ?? ''}`}>{empresa.estado}</span>
+
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-sky-700 border border-dashed border-slate-300 hover:border-sky-400 rounded-md px-3 py-2 cursor-pointer w-fit">
+            <Upload className="w-3.5 h-3.5" />
+            {saving === 'logo' ? 'Guardando...' : detalle?.logo ? 'Cambiar logo' : 'Subir logo (máx. 2MB)'}
+            <input type="file" accept="image/*" onChange={(e) => handleLogo(e.target.files?.[0])} disabled={saving === 'logo'} className="hidden" />
+          </label>
 
           <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-slate-500">Fecha de alta</span><span className="font-medium text-slate-800">{new Date(empresa.fechaAlta).toISOString().slice(0, 10)}</span></div>

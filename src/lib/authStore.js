@@ -3,6 +3,17 @@ import { api, setToken, getToken } from './api';
 const SESSION_KEY = 'erp:session';
 const PERMISOS_KEY = 'erp:permisos';
 const MODULOS_KEY = 'erp:modulos';
+const EMPRESA_KEY = 'erp:empresa';
+
+export function getEmpresaInfo() {
+  const raw = localStorage.getItem(EMPRESA_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 export function getSession() {
   const raw = localStorage.getItem(SESSION_KEY);
@@ -67,18 +78,20 @@ export function tieneAcceso(moduloId) {
 }
 
 export async function login(email, password) {
-  const { token, usuario, permisos, modulosHabilitados } = await api('/auth/login', { method: 'POST', body: { email, password } });
+  const { token, usuario, permisos, modulosHabilitados, empresa } = await api('/auth/login', { method: 'POST', body: { email, password } });
   setToken(token);
   localStorage.setItem(SESSION_KEY, JSON.stringify(usuario));
   localStorage.setItem(PERMISOS_KEY, JSON.stringify(permisos));
   localStorage.setItem(MODULOS_KEY, JSON.stringify(modulosHabilitados ?? []));
+  localStorage.setItem(EMPRESA_KEY, JSON.stringify(empresa ?? null));
   return usuario;
 }
 
 export async function refreshPermisos() {
-  const { permisos, modulosHabilitados } = await api('/auth/me');
+  const { permisos, modulosHabilitados, empresa } = await api('/auth/me');
   localStorage.setItem(PERMISOS_KEY, JSON.stringify(permisos));
   localStorage.setItem(MODULOS_KEY, JSON.stringify(modulosHabilitados ?? []));
+  if (empresa) localStorage.setItem(EMPRESA_KEY, JSON.stringify(empresa));
   return permisos;
 }
 
@@ -87,4 +100,5 @@ export function logout() {
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(PERMISOS_KEY);
   localStorage.removeItem(MODULOS_KEY);
+  localStorage.removeItem(EMPRESA_KEY);
 }
