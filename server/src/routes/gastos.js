@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermiso, requireAlguno, tienePermiso } from '../middleware/permisos.js';
 import { resolveTenant } from '../middleware/tenant.js';
+import { validarRut, normalizarRut } from '../lib/rut.js';
 
 export const gastosRouter = Router();
 gastosRouter.use(requireAuth, resolveTenant);
@@ -10,6 +11,24 @@ const V = requirePermiso('gastos', 'ver');
 const C = requirePermiso('gastos', 'crear');
 const E = requirePermiso('gastos', 'editar');
 const VoC = requireAlguno('gastos', ['ver', 'crear']);
+
+// Solo factura (33/46) da derecho a crédito fiscal de IVA — una boleta (39)
+// no, aunque venga desglosada. Exentas no tienen IVA que desglosar.
+const TIPOS_IVA_AFECTO = ['Factura electrónica', 'Factura de compra'];
+const TIPOS_EXENTO = ['Factura exenta', 'Boleta exenta'];
+
+// Se recalcula siempre en el backend a partir de monto + tipoDocumento —
+// nunca se confía en montoNeto/iva/ivaRecuperable que mande el cliente.
+function calcularDatosTributarios(monto, tipoDocumento) {
+  if (TIPOS_IVA_AFECTO.includes(tipoDocumento)) {
+    const montoNeto = Math.round(monto / 1.19);
+    return { montoNeto, iva: monto - montoNeto, ivaRecuperable: true };
+  }
+  if (TIPOS_EXENTO.includes(tipoDocumento)) {
+    return { montoNeto: monto, iva: 0, ivaRecuperable: false };
+  }
+  return { montoNeto: null, iva: null, ivaRecuperable: false };
+}
 
 const NEXT_ESTADO = {
   Enviada: ['En revisión', 'Rechazada'],
@@ -29,6 +48,11 @@ const LINEA_SELECT = {
   fecha: true,
   kilometros: true,
   comprobanteNombre: true,
+  tipoDocumento: true,
+  rutProveedor: true,
+  montoNeto: true,
+  iva: true,
+  ivaRecuperable: true,
 };
 
 async function nextFolio(prismaClient) {
@@ -61,6 +85,12 @@ gastosRouter.post('/rendiciones', C, async (req, res) => {
   const tecnico = (await tienePermiso(req, 'gastos', 'ver')) ? req.body.tecnico : req.user.nombre;
   if (!lineas?.length) return res.status(400).json({ error: 'La rendición debe tener al menos un ítem' });
 
+  for (const l of lineas) {
+    if (l.rutProveedor && !validarRut(l.rutProveedor)) {
+      return res.status(400).json({ error: `RUT inválido: ${l.rutProveedor}` });
+    }
+  }
+
   const folio = await nextFolio(req.prisma);
   const rendicion = await req.prisma.rendicion.create({
     data: {
@@ -68,15 +98,24 @@ gastosRouter.post('/rendiciones', C, async (req, res) => {
       tecnico,
       fecha: new Date(fecha),
       lineas: {
-        create: lineas.map((l) => ({
-          categoria: l.categoria,
-          monto: Number(l.monto),
-          descripcion: l.descripcion,
-          fecha: new Date(l.fecha),
-          kilometros: l.kilometros ? Number(l.kilometros) : null,
-          comprobante: l.comprobante || null,
-          comprobanteNombre: l.comprobanteNombre || null,
-        })),
+        create: lineas.map((l) => {
+          const monto = Number(l.monto);
+          const { montoNeto, iva, ivaRecuperable } = calcularDatosTributarios(monto, l.tipoDocumento);
+          return {
+            categoria: l.categoria,
+            monto,
+            descripcion: l.descripcion,
+            fecha: new Date(l.fecha),
+            kilometros: l.kilometros ? Number(l.kilometros) : null,
+            comprobante: l.comprobante || null,
+            comprobanteNombre: l.comprobanteNombre || null,
+            tipoDocumento: l.tipoDocumento || 'Sin documento',
+            rutProveedor: l.rutProveedor ? normalizarRut(l.rutProveedor) : null,
+            montoNeto,
+            iva,
+            ivaRecuperable,
+          };
+        }),
       },
       bitacora: { create: [{ fecha: new Date(fecha), evento: 'Rendición enviada', detalle: `Enviada por ${tecnico}.` }] },
     },

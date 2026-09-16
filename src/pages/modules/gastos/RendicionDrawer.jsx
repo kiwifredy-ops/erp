@@ -70,30 +70,61 @@ export default function RendicionDrawer({ rendicion, onClose, onChanged }) {
               <Receipt className="w-3.5 h-3.5" /> Ítems
             </p>
             <ul className="space-y-2">
-              {rendicion.lineas.map((l) => (
-                <li key={l.id} className="bg-slate-50 rounded-md p-3 text-sm">
-                  <div className="flex justify-between">
-                    <div>
-                      <p className="font-medium text-slate-700">{l.categoria}</p>
-                      <p className="text-xs text-slate-500">{l.descripcion}</p>
-                      <p className="text-xs text-slate-400">
-                        {new Date(l.fecha).toISOString().slice(0, 10)}
-                        {l.kilometros ? ` · ${l.kilometros} km` : ''}
-                      </p>
+              {rendicion.lineas.map((l) => {
+                const alertas = [];
+                if (!l.comprobanteNombre) alertas.push('Sin comprobante');
+                if (new Date(l.fecha) > new Date()) alertas.push('Fecha futura');
+                if (rendicion.lineas.some((o) => o.id !== l.id && o.categoria === l.categoria && o.monto === l.monto && new Date(o.fecha).toDateString() === new Date(l.fecha).toDateString())) {
+                  alertas.push('Posible duplicado');
+                }
+
+                return (
+                  <li key={l.id} className="bg-slate-50 rounded-md p-3 text-sm">
+                    <div className="flex justify-between">
+                      <div>
+                        <p className="font-medium text-slate-700">{l.categoria}</p>
+                        <p className="text-xs text-slate-500">{l.descripcion}</p>
+                        <p className="text-xs text-slate-400">
+                          {new Date(l.fecha).toISOString().slice(0, 10)}
+                          {l.kilometros ? ` · ${l.kilometros} km` : ''}
+                        </p>
+                      </div>
+                      <p className="font-medium text-slate-800">{formatCLP(l.monto)}</p>
                     </div>
-                    <p className="font-medium text-slate-800">{formatCLP(l.monto)}</p>
-                  </div>
-                  {l.comprobanteNombre && (
-                    <button
-                      onClick={() => handleVerComprobante(l.id)}
-                      disabled={viewingId === l.id}
-                      className="flex items-center gap-1 text-xs text-sky-700 hover:underline mt-1.5"
-                    >
-                      <Paperclip className="w-3 h-3" /> Ver comprobante
-                    </button>
-                  )}
-                </li>
-              ))}
+
+                    {l.tipoDocumento && l.tipoDocumento !== 'Sin documento' && (
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        {l.tipoDocumento}{l.rutProveedor ? ` · ${l.rutProveedor}` : ''}
+                        {l.montoNeto != null && (
+                          <> · Neto {formatCLP(l.montoNeto)} · IVA {formatCLP(l.iva)} ·{' '}
+                            <span className={l.ivaRecuperable ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                              {l.ivaRecuperable ? 'IVA recuperable' : 'No recuperable'}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    )}
+
+                    {alertas.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {alertas.map((a) => (
+                          <span key={a} className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">{a}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    {l.comprobanteNombre && (
+                      <button
+                        onClick={() => handleVerComprobante(l.id)}
+                        disabled={viewingId === l.id}
+                        className="flex items-center gap-1 text-xs text-sky-700 hover:underline mt-1.5"
+                      >
+                        <Paperclip className="w-3 h-3" /> Ver comprobante
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
 

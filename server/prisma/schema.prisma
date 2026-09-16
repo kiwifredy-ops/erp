@@ -189,6 +189,16 @@ model RendicionLinea {
   comprobante       String? @db.LongText
   comprobanteNombre String?
 
+  // Datos tributarios (Chile) — null = sin documento tributario asociado
+  // (compatible con líneas creadas antes de este campo). montoNeto/iva se
+  // calculan en el backend a partir de monto + tipoDocumento, nunca se
+  // confía en lo que mande el cliente.
+  tipoDocumento  String? // Boleta electrónica | Factura electrónica | Factura exenta | Boleta exenta | Factura de compra | Boleta de honorarios | Guía de despacho | Sin documento
+  rutProveedor   String?
+  montoNeto      Int?
+  iva            Int?
+  ivaRecuperable Boolean @default(false)
+
   @@index([rendicionId])
 }
 

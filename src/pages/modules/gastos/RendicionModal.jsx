@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Plus, Trash2, Paperclip } from 'lucide-react';
-import { crearRendicion, CATEGORIAS_GASTO, TARIFA_KM, fileToBase64 } from '../../../lib/gastosStore';
+import { crearRendicion, CATEGORIAS_GASTO, TARIFA_KM, TIPOS_DOCUMENTO, calcularIva, fileToBase64 } from '../../../lib/gastosStore';
+import { validarRut } from '../../../lib/rut';
 
 const emptyLinea = () => ({
   categoria: CATEGORIAS_GASTO[0],
@@ -10,6 +11,8 @@ const emptyLinea = () => ({
   fecha: new Date().toISOString().slice(0, 10),
   comprobante: null,
   comprobanteNombre: '',
+  tipoDocumento: 'Boleta electrónica',
+  rutProveedor: '',
 });
 
 const MAX_BYTES = 6 * 1024 * 1024;
@@ -27,8 +30,11 @@ export default function RendicionModal({ empleados = [], fixedTecnico, onClose, 
   function setCategoria(i, categoria) {
     setLineas((ls) => ls.map((l, idx) => {
       if (idx !== i) return l;
-      if (categoria === 'Kilometraje') return { ...l, categoria, monto: l.kilometros ? String(Number(l.kilometros) * TARIFA_KM) : '' };
-      return { ...l, categoria };
+      // El kilometraje no tiene un comprobante tributario asociado.
+      if (categoria === 'Kilometraje') {
+        return { ...l, categoria, monto: l.kilometros ? String(Number(l.kilometros) * TARIFA_KM) : '', tipoDocumento: 'Sin documento' };
+      }
+      return { ...l, categoria, tipoDocumento: l.tipoDocumento === 'Sin documento' ? 'Boleta electrónica' : l.tipoDocumento };
     }));
   }
 
@@ -58,6 +64,11 @@ export default function RendicionModal({ empleados = [], fixedTecnico, onClose, 
     e.preventDefault();
     const validLineas = lineas.filter((l) => l.monto && l.descripcion);
     if (!tecnico || validLineas.length === 0) return;
+    const rutInvalido = validLineas.find((l) => l.rutProveedor && !validarRut(l.rutProveedor));
+    if (rutInvalido) {
+      setError(`RUT inválido: ${rutInvalido.rutProveedor}`);
+      return;
+    }
     setError('');
     setSaving(true);
     try {
@@ -111,6 +122,38 @@ export default function RendicionModal({ empleados = [], fixedTecnico, onClose, 
                   <p className="text-xs text-slate-500">{l.kilometros} km × ${TARIFA_KM}/km = ${Number(l.monto).toLocaleString('es-CL')}</p>
                 )}
                 <input placeholder="Descripción" value={l.descripcion} onChange={(e) => setLinea(i, 'descripcion', e.target.value)} className="input" />
+
+                {l.categoria !== 'Kilometraje' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={l.tipoDocumento} onChange={(e) => setLinea(i, 'tipoDocumento', e.target.value)} className="input">
+                        {TIPOS_DOCUMENTO.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <input
+                        placeholder="RUT proveedor (opcional)"
+                        value={l.rutProveedor}
+                        onChange={(e) => setLinea(i, 'rutProveedor', e.target.value)}
+                        className={`input ${l.rutProveedor && !validarRut(l.rutProveedor) ? 'border-red-400 focus:ring-red-400' : ''}`}
+                      />
+                    </div>
+                    {l.rutProveedor && !validarRut(l.rutProveedor) && (
+                      <p className="text-xs text-red-600">RUT inválido.</p>
+                    )}
+                    {l.monto > 0 && (() => {
+                      const { montoNeto, iva, ivaRecuperable } = calcularIva(l.monto, l.tipoDocumento);
+                      return montoNeto === null ? (
+                        <p className="text-xs text-slate-400">Sin desglose de IVA · no da crédito fiscal.</p>
+                      ) : (
+                        <p className="text-xs text-slate-500">
+                          Neto ${montoNeto.toLocaleString('es-CL')} · IVA ${iva.toLocaleString('es-CL')} ·{' '}
+                          <span className={ivaRecuperable ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                            {ivaRecuperable ? 'IVA recuperable' : 'No recuperable'}
+                          </span>
+                        </p>
+                      );
+                    })()}
+                  </>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <input type="date" value={l.fecha} onChange={(e) => setLinea(i, 'fecha', e.target.value)} className="input w-auto" />
                   <div className="flex items-center gap-1">

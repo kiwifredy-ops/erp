@@ -11,9 +11,10 @@
     "db:seed": "node prisma/seed.js",
     "db:generate:plataforma": "prisma generate --schema=prisma/plataforma/schema.prisma",
     "db:push:plataforma": "prisma db push --schema=prisma/plataforma/schema.prisma",
+    "db:push:tenants": "node prisma/pushTenantSchema.js",
     "db:bootstrap:plataforma": "node prisma/plataforma/bootstrap.js",
     "db:generate:all": "npm run db:generate && npm run db:generate:plataforma",
-    "db:push:all": "npm run db:push && npm run db:push:plataforma",
+    "db:push:all": "npm run db:push && npm run db:push:plataforma && npm run db:push:tenants",
     "postinstall": "npm run db:generate:all"
   },
   "dependencies": {

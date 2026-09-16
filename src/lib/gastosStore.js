@@ -7,6 +7,34 @@ export const ESTADOS_RENDICION = ['Enviada', 'En revisión', 'Aprobada', 'Rechaz
 // Tarifa de reembolso por kilómetro recorrido con vehículo propio (CLP).
 export const TARIFA_KM = 130;
 
+export const TIPOS_DOCUMENTO = [
+  'Boleta electrónica',
+  'Factura electrónica',
+  'Factura exenta',
+  'Boleta exenta',
+  'Factura de compra',
+  'Boleta de honorarios',
+  'Guía de despacho',
+  'Sin documento',
+];
+
+const TIPOS_IVA_AFECTO = ['Factura electrónica', 'Factura de compra'];
+const TIPOS_EXENTO = ['Factura exenta', 'Boleta exenta'];
+
+// Solo de previsualización en el formulario — el backend recalcula y es la
+// fuente de verdad al guardar.
+export function calcularIva(monto, tipoDocumento) {
+  const bruto = Number(monto) || 0;
+  if (TIPOS_IVA_AFECTO.includes(tipoDocumento)) {
+    const montoNeto = Math.round(bruto / 1.19);
+    return { montoNeto, iva: bruto - montoNeto, ivaRecuperable: true };
+  }
+  if (TIPOS_EXENTO.includes(tipoDocumento)) {
+    return { montoNeto: bruto, iva: 0, ivaRecuperable: false };
+  }
+  return { montoNeto: null, iva: null, ivaRecuperable: false };
+}
+
 const NEXT_ESTADO = {
   Enviada: ['En revisión', 'Rechazada'],
   'En revisión': ['Aprobada', 'Rechazada'],

@@ -53,6 +53,7 @@ export default function GastosModule() {
 
   const pendientes = rendiciones.filter((r) => ['Enviada', 'En revisión'].includes(r.estado)).length;
   const totalMes = rendiciones.reduce((sum, r) => sum + getTotal(r), 0);
+  const ivaRecuperable = rendiciones.reduce((sum, r) => sum + r.lineas.reduce((s, l) => s + (l.ivaRecuperable ? l.iva || 0 : 0), 0), 0);
 
   // Sin el permiso de "ver" el módulo completo, cada usuario solo puede
   // enviar y consultar sus propias rendiciones — no ve las de nadie más.
@@ -75,7 +76,7 @@ export default function GastosModule() {
         <p className="text-sm text-slate-500 mt-0.5">Gastos de personal técnico en terreno: combustible, peajes, alojamiento y viáticos.</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-lg p-4">
           <p className="text-2xl font-semibold text-slate-900">{rendiciones.length}</p>
           <p className="text-xs text-slate-500 mt-1">Rendiciones totales</p>
@@ -87,6 +88,10 @@ export default function GastosModule() {
         <div className="bg-white border border-slate-200 rounded-lg p-4">
           <p className="text-2xl font-semibold text-slate-900">{formatCLP(totalMes)}</p>
           <p className="text-xs text-slate-500 mt-1">Monto acumulado</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-4">
+          <p className="text-2xl font-semibold text-emerald-600">{formatCLP(ivaRecuperable)}</p>
+          <p className="text-xs text-slate-500 mt-1">IVA recuperable</p>
         </div>
       </div>
 
