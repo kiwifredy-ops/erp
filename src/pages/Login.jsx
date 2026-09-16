@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      navigate('/');
+      navigate('/panel');
     } catch (err) {
       setError(err.message || 'No se pudo iniciar sesión.');
     } finally {

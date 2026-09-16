@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ShieldOff } from 'lucide-react';
 import AppLayout from './components/layout/AppLayout';
 import Login from './pages/Login';
+import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import ModulePlaceholder from './pages/ModulePlaceholder';
 import RRHHModule from './pages/modules/rrhh/RRHHModule';
@@ -18,8 +19,9 @@ import MantenimientoModule from './pages/modules/mantenimiento/MantenimientoModu
 import PlataformaLogin from './pages/plataforma/PlataformaLogin';
 import PlataformaLayout from './pages/plataforma/PlataformaLayout';
 import EmpresasDashboard from './pages/plataforma/EmpresasDashboard';
+import SolicitudesDashboard from './pages/plataforma/SolicitudesDashboard';
 import { IMPLEMENTED_MODULES } from './lib/modules';
-import { tieneAcceso } from './lib/authStore';
+import { tieneAcceso, getSession } from './lib/authStore';
 
 const MODULE_COMPONENTS = {
   rrhh: RRHHModule,
@@ -54,18 +56,24 @@ function ModuleRoute() {
   return Component ? <Component /> : <ModulePlaceholder />;
 }
 
+function HomeRoute() {
+  return getSession() ? <Navigate to="/panel" replace /> : <Landing />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<HomeRoute />} />
         <Route path="/login" element={<Login />} />
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/panel" element={<Dashboard />} />
           <Route path="/modulos/:moduleId" element={<ModuleRoute />} />
         </Route>
         <Route path="/plataforma/login" element={<PlataformaLogin />} />
         <Route path="/plataforma" element={<PlataformaLayout />}>
           <Route index element={<EmpresasDashboard />} />
+          <Route path="solicitudes" element={<SolicitudesDashboard />} />
         </Route>
       </Routes>
     </BrowserRouter>

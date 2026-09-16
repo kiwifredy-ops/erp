@@ -1,6 +1,11 @@
-import { Outlet, Navigate, useNavigate } from 'react-router-dom';
-import { Building2, LogOut } from 'lucide-react';
+import { Outlet, Navigate, NavLink, useNavigate } from 'react-router-dom';
+import { Building2, LogOut, Inbox } from 'lucide-react';
 import { getPlataformaSession, logoutPlataforma } from '../../lib/plataformaAuthStore';
+
+const NAV_ITEMS = [
+  { to: '/plataforma', label: 'Empresas', icon: Building2, end: true },
+  { to: '/plataforma/solicitudes', label: 'Solicitudes', icon: Inbox, end: false },
+];
 
 export default function PlataformaLayout() {
   const superUser = getPlataformaSession();
@@ -29,6 +34,22 @@ export default function PlataformaLayout() {
               <LogOut className="w-3.5 h-3.5" /> Cerrar sesión
             </button>
           </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-1 -mb-px">
+          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 text-sm px-3 py-2.5 border-b-2 transition-colors ${
+                  isActive ? 'border-sky-400 text-white font-medium' : 'border-transparent text-slate-400 hover:text-white'
+                }`
+              }
+            >
+              <Icon className="w-3.5 h-3.5" /> {label}
+            </NavLink>
+          ))}
         </div>
       </header>
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">

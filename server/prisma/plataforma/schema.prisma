@@ -74,3 +74,18 @@ model SuperUsuario {
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+// Solicitudes de contacto enviadas desde la landing pública (formulario
+// "quiero contratar") — quedan pendientes de revisión por un súper
+// administrador, que las marca como Contactada o Descartada a medida que
+// las gestiona. No crea ninguna empresa por sí sola.
+model Solicitud {
+  id        String   @id @default(cuid())
+  nombre    String
+  empresa   String
+  email     String
+  telefono  String
+  mensaje   String?  @db.Text
+  estado    String   @default("Nueva") // Nueva | Contactada | Descartada
+  createdAt DateTime @default(now())
+}

@@ -28,6 +28,26 @@ plataformaRouter.post('/login', async (req, res) => {
   res.json({ token, superUsuario: { id: superUsuario.id, nombre: superUsuario.nombre, email: superUsuario.email } });
 });
 
+// Formulario de contacto de la landing pública — sin autenticación, igual
+// que /login. No crea una empresa: solo queda registrada para que un súper
+// administrador la revise y contacte manualmente desde /plataforma.
+plataformaRouter.post('/solicitudes', async (req, res) => {
+  const { nombre, empresa, email, telefono, mensaje } = req.body;
+  if (!nombre?.trim() || !empresa?.trim() || !email?.trim() || !telefono?.trim()) {
+    return res.status(400).json({ error: 'Nombre, empresa, correo y teléfono son requeridos' });
+  }
+  const solicitud = await prismaPlataforma.solicitud.create({
+    data: {
+      nombre: nombre.trim(),
+      empresa: empresa.trim(),
+      email: email.trim(),
+      telefono: telefono.trim(),
+      mensaje: mensaje?.trim() || null,
+    },
+  });
+  res.status(201).json(solicitud);
+});
+
 plataformaRouter.use(requireSuperAdmin);
 
 // El logo (base64) se excluye del listado a propósito — solo se pide en el
@@ -136,4 +156,20 @@ plataformaRouter.patch('/empresas/:id/modulos', async (req, res) => {
   const filas = await prismaPlataforma.empresaModulo.findMany({ where: { empresaId: req.params.id } });
   const habilitados = new Set(filas.filter((f) => f.habilitado).map((f) => f.moduloId));
   res.json(TODOS_LOS_MODULOS.map((m) => ({ moduloId: m, habilitado: habilitados.has(m) })));
+});
+
+// --- Solicitudes de contacto (revisión por el súper administrador) -----
+
+plataformaRouter.get('/solicitudes', async (req, res) => {
+  const solicitudes = await prismaPlataforma.solicitud.findMany({ orderBy: { createdAt: 'desc' } });
+  res.json(solicitudes);
+});
+
+plataformaRouter.patch('/solicitudes/:id', async (req, res) => {
+  const { estado } = req.body;
+  if (!['Nueva', 'Contactada', 'Descartada'].includes(estado)) {
+    return res.status(400).json({ error: 'Estado inválido' });
+  }
+  const solicitud = await prismaPlataforma.solicitud.update({ where: { id: req.params.id }, data: { estado } });
+  res.json(solicitud);
 });
