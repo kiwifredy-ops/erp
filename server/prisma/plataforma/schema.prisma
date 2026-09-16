@@ -1,0 +1,72 @@
+// Base de control de la plataforma ("control-plane"): registro de empresas
+// (tenants), sus módulos habilitados por plan y los súper administradores
+// que gestionan la plataforma. Completamente separada de la base de datos
+// de cada empresa (una base MySQL por empresa, ver server/prisma/schema.prisma).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../generated/plataforma-client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL_PLATAFORMA")
+}
+
+// Cada empresa tiene su propia base de datos MySQL, en el mismo servidor.
+// Aquí solo se guarda su metadata de plataforma — nunca una URL de conexión
+// completa con credenciales: dbName se combina en tiempo de ejecución con
+// TENANT_DB_BASE_URL para construir la conexión real.
+model Empresa {
+  id               String    @id @default(cuid())
+  nombre           String
+  slug             String    @unique
+  dbName           String    @unique
+  estado           String    @default("Activa") // Activa | Suspendida | Bloqueada | Eliminada
+  fechaAlta        DateTime  @default(now())
+  fechaProximoPago DateTime?
+  notas            String?   @db.Text
+
+  usuarios UsuarioIndex[]
+  modulos  EmpresaModulo[]
+}
+
+// Índice global correo → empresa: permite resolver en el login a qué
+// empresa pertenece un usuario sin consultar cada base de datos una por
+// una. El correo es único en toda la plataforma, no solo dentro de una
+// empresa — se mantiene sincronizado desde server/src/routes/usuarios.js
+// cada vez que una empresa crea un usuario nuevo.
+model UsuarioIndex {
+  email     String   @id
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([empresaId])
+}
+
+// Módulos habilitados por plan para cada empresa — independiente de los
+// permisos por rol (RolPermiso) que cada empresa configura puertas adentro
+// para sus propios usuarios. Sin fila explícita = módulo deshabilitado,
+// misma filosofía de "denegado por defecto" que ya usa RolPermiso.
+model EmpresaModulo {
+  id         String  @id @default(cuid())
+  empresaId  String
+  empresa    Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  moduloId   String
+  habilitado Boolean @default(true)
+
+  @@unique([empresaId, moduloId])
+}
+
+// Súper administradores de la plataforma — credenciales completamente
+// separadas de los usuarios de cada empresa (Usuario, en la base de cada
+// tenant). Un token de un usuario normal nunca sirve para esta tabla.
+model SuperUsuario {
+  id        String   @id @default(cuid())
+  nombre    String
+  email     String   @unique
+  password  String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

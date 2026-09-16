@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermiso } from '../middleware/permisos.js';
+import { resolveTenant } from '../middleware/tenant.js';
 
 export const rrhhRouter = Router();
-rrhhRouter.use(requireAuth);
+rrhhRouter.use(requireAuth, resolveTenant);
 
 const V = requirePermiso('rrhh', 'ver');
 const C = requirePermiso('rrhh', 'crear');
@@ -31,7 +31,7 @@ function diasHasta(fecha) {
 }
 
 rrhhRouter.get('/empleados', V, async (req, res) => {
-  const empleados = await prisma.empleado.findMany({
+  const empleados = await req.prisma.empleado.findMany({
     include: DOC_INCLUDE,
     orderBy: { createdAt: 'desc' },
   });
@@ -39,7 +39,7 @@ rrhhRouter.get('/empleados', V, async (req, res) => {
 });
 
 rrhhRouter.get('/empleados/alertas', V, async (req, res) => {
-  const empleados = await prisma.empleado.findMany({ where: { estado: { not: 'Baja' } } });
+  const empleados = await req.prisma.empleado.findMany({ where: { estado: { not: 'Baja' } } });
   const contratosPorVencer = empleados
     .filter((e) => e.fechaTerminoContrato)
     .map((e) => ({ ...e, diasRestantes: diasHasta(e.fechaTerminoContrato) }))
@@ -56,7 +56,7 @@ rrhhRouter.get('/empleados/alertas', V, async (req, res) => {
 
 rrhhRouter.post('/empleados', C, async (req, res) => {
   const { nombre, documento, cargo, departamento, tipoContrato, fechaIngreso, email, telefono } = req.body;
-  const empleado = await prisma.empleado.create({
+  const empleado = await req.prisma.empleado.create({
     data: {
       nombre,
       documento,
@@ -77,7 +77,7 @@ rrhhRouter.post('/empleados', C, async (req, res) => {
 
 rrhhRouter.patch('/empleados/:id', E, async (req, res) => {
   const { cargo, departamento, tipoContrato } = req.body;
-  const before = await prisma.empleado.findUnique({ where: { id: req.params.id } });
+  const before = await req.prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Empleado no encontrado' });
 
   const campos = { cargo: 'Cargo', departamento: 'Departamento', tipoContrato: 'Tipo de contrato' };
@@ -86,7 +86,7 @@ rrhhRouter.patch('/empleados/:id', E, async (req, res) => {
     .filter(([k, v]) => v !== undefined && before[k] !== v)
     .map(([k, v]) => ({ fecha: new Date(), evento: `Actualización de ${campos[k]}`, detalle: `${campos[k]}: ${before[k]} → ${v}` }));
 
-  const empleado = await prisma.empleado.update({
+  const empleado = await req.prisma.empleado.update({
     where: { id: req.params.id },
     data: { ...cambios, bitacora: { create: bitacoraNueva } },
     include: DOC_INCLUDE,
@@ -119,7 +119,7 @@ const CAMPOS_PERFIL = [
 const CAMPOS_FECHA = new Set(['fechaTerminoContrato', 'rutVencimiento']);
 
 rrhhRouter.patch('/empleados/:id/perfil', E, async (req, res) => {
-  const before = await prisma.empleado.findUnique({ where: { id: req.params.id } });
+  const before = await req.prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Empleado no encontrado' });
 
   const data = {};
@@ -129,7 +129,7 @@ rrhhRouter.patch('/empleados/:id/perfil', E, async (req, res) => {
     data[campo] = CAMPOS_FECHA.has(campo) ? (valor ? new Date(valor) : null) : valor;
   }
 
-  const empleado = await prisma.empleado.update({
+  const empleado = await req.prisma.empleado.update({
     where: { id: req.params.id },
     data: {
       ...data,
@@ -142,13 +142,13 @@ rrhhRouter.patch('/empleados/:id/perfil', E, async (req, res) => {
 
 rrhhRouter.post('/empleados/:id/estado', E, async (req, res) => {
   const { estado, motivo } = req.body;
-  const before = await prisma.empleado.findUnique({ where: { id: req.params.id } });
+  const before = await req.prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Empleado no encontrado' });
   if (!NEXT_ESTADO[before.estado]?.includes(estado)) {
     return res.status(400).json({ error: `Transición de estado inválida: ${before.estado} → ${estado}` });
   }
 
-  const empleado = await prisma.empleado.update({
+  const empleado = await req.prisma.empleado.update({
     where: { id: req.params.id },
     data: {
       estado,
@@ -163,19 +163,19 @@ rrhhRouter.post('/empleados/:id/estado', E, async (req, res) => {
 
 rrhhRouter.post('/empleados/:id/hijos', E, async (req, res) => {
   const { nombre, fechaNacimiento } = req.body;
-  const empleado = await prisma.empleado.findUnique({ where: { id: req.params.id } });
+  const empleado = await req.prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!empleado) return res.status(404).json({ error: 'Empleado no encontrado' });
 
-  await prisma.hijo.create({
+  await req.prisma.hijo.create({
     data: { empleadoId: req.params.id, nombre, fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null },
   });
-  const actualizado = await prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
+  const actualizado = await req.prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
   res.status(201).json(actualizado);
 });
 
 rrhhRouter.delete('/empleados/:id/hijos/:hijoId', D, async (req, res) => {
-  await prisma.hijo.deleteMany({ where: { id: req.params.hijoId, empleadoId: req.params.id } });
-  const actualizado = await prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
+  await req.prisma.hijo.deleteMany({ where: { id: req.params.hijoId, empleadoId: req.params.id } });
+  const actualizado = await req.prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
   res.json(actualizado);
 });
 
@@ -186,33 +186,33 @@ rrhhRouter.post('/empleados/:id/documentos', E, async (req, res) => {
   if (!tipo || !nombreArchivo || !mimeType || !contenido) {
     return res.status(400).json({ error: 'Faltan datos del documento' });
   }
-  const empleado = await prisma.empleado.findUnique({ where: { id: req.params.id } });
+  const empleado = await req.prisma.empleado.findUnique({ where: { id: req.params.id } });
   if (!empleado) return res.status(404).json({ error: 'Empleado no encontrado' });
 
-  await prisma.documento.create({
+  await req.prisma.documento.create({
     data: { empleadoId: req.params.id, tipo, nombreArchivo, mimeType, contenido },
   });
-  await prisma.empleadoBitacora.create({
+  await req.prisma.empleadoBitacora.create({
     data: { empleadoId: req.params.id, fecha: new Date(), evento: 'Documento adjuntado', detalle: `${tipo}: ${nombreArchivo}` },
   });
-  const actualizado = await prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
+  const actualizado = await req.prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
   res.status(201).json(actualizado);
 });
 
 rrhhRouter.get('/empleados/:id/documentos/:docId', V, async (req, res) => {
-  const doc = await prisma.documento.findFirst({ where: { id: req.params.docId, empleadoId: req.params.id } });
+  const doc = await req.prisma.documento.findFirst({ where: { id: req.params.docId, empleadoId: req.params.id } });
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
   res.json(doc);
 });
 
 rrhhRouter.delete('/empleados/:id/documentos/:docId', D, async (req, res) => {
-  await prisma.documento.deleteMany({ where: { id: req.params.docId, empleadoId: req.params.id } });
-  const actualizado = await prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
+  await req.prisma.documento.deleteMany({ where: { id: req.params.docId, empleadoId: req.params.id } });
+  const actualizado = await req.prisma.empleado.findUnique({ where: { id: req.params.id }, include: DOC_INCLUDE });
   res.json(actualizado);
 });
 
 rrhhRouter.get('/departamentos-resumen', V, async (req, res) => {
-  const empleados = await prisma.empleado.findMany();
+  const empleados = await req.prisma.empleado.findMany();
   const porDepto = {};
   for (const e of empleados) {
     porDepto[e.departamento] ??= { departamento: e.departamento, total: 0, activos: 0, cargos: new Set() };

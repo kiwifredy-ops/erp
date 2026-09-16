@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermiso, requireAlguno, tienePermiso } from '../middleware/permisos.js';
+import { resolveTenant } from '../middleware/tenant.js';
 
 export const gastosRouter = Router();
-gastosRouter.use(requireAuth);
+gastosRouter.use(requireAuth, resolveTenant);
 
 const V = requirePermiso('gastos', 'ver');
 const C = requirePermiso('gastos', 'crear');
@@ -31,13 +31,13 @@ const LINEA_SELECT = {
   comprobanteNombre: true,
 };
 
-async function nextFolio() {
-  const count = await prisma.rendicion.count();
+async function nextFolio(prismaClient) {
+  const count = await prismaClient.rendicion.count();
   return `RG${String(count + 1).padStart(4, '0')}`;
 }
 
 gastosRouter.get('/rendiciones', V, async (req, res) => {
-  const rendiciones = await prisma.rendicion.findMany({
+  const rendiciones = await req.prisma.rendicion.findMany({
     include: { lineas: { select: LINEA_SELECT }, bitacora: { orderBy: { fecha: 'asc' } } },
     orderBy: { createdAt: 'desc' },
   });
@@ -46,7 +46,7 @@ gastosRouter.get('/rendiciones', V, async (req, res) => {
 
 // Autoservicio: solo las rendiciones enviadas por el usuario logueado.
 gastosRouter.get('/rendiciones/mias', VoC, async (req, res) => {
-  const rendiciones = await prisma.rendicion.findMany({
+  const rendiciones = await req.prisma.rendicion.findMany({
     where: { tecnico: req.user.nombre },
     include: { lineas: { select: LINEA_SELECT }, bitacora: { orderBy: { fecha: 'asc' } } },
     orderBy: { createdAt: 'desc' },
@@ -58,11 +58,11 @@ gastosRouter.post('/rendiciones', C, async (req, res) => {
   const { fecha, lineas } = req.body;
   // Sin permiso de "ver" (visibilidad completa), el técnico solo puede
   // enviar rendiciones a su propio nombre — no puede suplantar a otro.
-  const tecnico = (await tienePermiso(req.user.rol, 'gastos', 'ver')) ? req.body.tecnico : req.user.nombre;
+  const tecnico = (await tienePermiso(req, 'gastos', 'ver')) ? req.body.tecnico : req.user.nombre;
   if (!lineas?.length) return res.status(400).json({ error: 'La rendición debe tener al menos un ítem' });
 
-  const folio = await nextFolio();
-  const rendicion = await prisma.rendicion.create({
+  const folio = await nextFolio(req.prisma);
+  const rendicion = await req.prisma.rendicion.create({
     data: {
       folio,
       tecnico,
@@ -86,12 +86,12 @@ gastosRouter.post('/rendiciones', C, async (req, res) => {
 });
 
 gastosRouter.get('/rendiciones/:id/lineas/:lineaId/comprobante', VoC, async (req, res) => {
-  const linea = await prisma.rendicionLinea.findFirst({
+  const linea = await req.prisma.rendicionLinea.findFirst({
     where: { id: req.params.lineaId, rendicionId: req.params.id },
     include: { rendicion: { select: { tecnico: true } } },
   });
   if (!linea || !linea.comprobante) return res.status(404).json({ error: 'Comprobante no encontrado' });
-  if (!(await tienePermiso(req.user.rol, 'gastos', 'ver')) && linea.rendicion.tecnico !== req.user.nombre) {
+  if (!(await tienePermiso(req, 'gastos', 'ver')) && linea.rendicion.tecnico !== req.user.nombre) {
     return res.status(403).json({ error: 'No tienes permiso para ver este comprobante.' });
   }
   res.json({ comprobante: linea.comprobante, comprobanteNombre: linea.comprobanteNombre });
@@ -99,13 +99,13 @@ gastosRouter.get('/rendiciones/:id/lineas/:lineaId/comprobante', VoC, async (req
 
 gastosRouter.post('/rendiciones/:id/estado', E, async (req, res) => {
   const { estado, motivo } = req.body;
-  const before = await prisma.rendicion.findUnique({ where: { id: req.params.id } });
+  const before = await req.prisma.rendicion.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Rendición no encontrada' });
   if (!NEXT_ESTADO[before.estado]?.includes(estado)) {
     return res.status(400).json({ error: `Transición de estado inválida: ${before.estado} → ${estado}` });
   }
 
-  const rendicion = await prisma.rendicion.update({
+  const rendicion = await req.prisma.rendicion.update({
     where: { id: req.params.id },
     data: { estado, bitacora: { create: [{ fecha: new Date(), evento: `Cambio de estado → ${estado}`, detalle: motivo || '—' }] } },
     include: { lineas: { select: LINEA_SELECT }, bitacora: { orderBy: { fecha: 'asc' } } },

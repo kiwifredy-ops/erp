@@ -9,7 +9,12 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
-    "postinstall": "prisma generate"
+    "db:generate:plataforma": "prisma generate --schema=prisma/plataforma/schema.prisma",
+    "db:push:plataforma": "prisma db push --schema=prisma/plataforma/schema.prisma",
+    "db:bootstrap:plataforma": "node prisma/plataforma/bootstrap.js",
+    "db:generate:all": "npm run db:generate && npm run db:generate:plataforma",
+    "db:push:all": "npm run db:push && npm run db:push:plataforma",
+    "postinstall": "npm run db:generate:all"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
@@ -17,7 +22,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.24.4"
   },
   "devDependencies": {
     "prisma": "^6.4.1"

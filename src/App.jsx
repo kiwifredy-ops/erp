@@ -15,6 +15,9 @@ import TicketsModule from './pages/modules/tickets/TicketsModule';
 import ClientesModule from './pages/modules/clientes/ClientesModule';
 import UsuariosModule from './pages/modules/usuarios/UsuariosModule';
 import MantenimientoModule from './pages/modules/mantenimiento/MantenimientoModule';
+import PlataformaLogin from './pages/plataforma/PlataformaLogin';
+import PlataformaLayout from './pages/plataforma/PlataformaLayout';
+import EmpresasDashboard from './pages/plataforma/EmpresasDashboard';
 import { IMPLEMENTED_MODULES } from './lib/modules';
 import { tieneAcceso } from './lib/authStore';
 
@@ -59,6 +62,10 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/modulos/:moduleId" element={<ModuleRoute />} />
+        </Route>
+        <Route path="/plataforma/login" element={<PlataformaLogin />} />
+        <Route path="/plataforma" element={<PlataformaLayout />}>
+          <Route index element={<EmpresasDashboard />} />
         </Route>
       </Routes>
     </BrowserRouter>

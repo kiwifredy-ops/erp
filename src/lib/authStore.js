@@ -2,6 +2,7 @@ import { api, setToken, getToken } from './api';
 
 const SESSION_KEY = 'erp:session';
 const PERMISOS_KEY = 'erp:permisos';
+const MODULOS_KEY = 'erp:modulos';
 
 export function getSession() {
   const raw = localStorage.getItem(SESSION_KEY);
@@ -27,6 +28,19 @@ function permisoDe(moduloId) {
   return getPermisos().find((p) => p.moduloId === moduloId);
 }
 
+// null (clave ausente) significa "sesión anterior a que el backend
+// empezara a mandar este campo" — no restringe, en vez de bloquear todo
+// hasta el próximo login. Una lista real (aunque vacía) sí restringe.
+export function getModulosHabilitados() {
+  const raw = localStorage.getItem(MODULOS_KEY);
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function puedeVer(moduloId) {
   return !!permisoDe(moduloId)?.puedeVer;
 }
@@ -46,21 +60,25 @@ export function puedeEliminar(moduloId) {
 // el nivel de acceso — con solo "crear" igual se entra, pero a una pantalla
 // de autoservicio en vez de la vista completa.
 export function tieneAcceso(moduloId) {
+  const modulos = getModulosHabilitados();
+  if (modulos && !modulos.includes(moduloId)) return false;
   const p = permisoDe(moduloId);
   return !!(p?.puedeVer || p?.puedeCrear || p?.puedeEditar || p?.puedeEliminar);
 }
 
 export async function login(email, password) {
-  const { token, usuario, permisos } = await api('/auth/login', { method: 'POST', body: { email, password } });
+  const { token, usuario, permisos, modulosHabilitados } = await api('/auth/login', { method: 'POST', body: { email, password } });
   setToken(token);
   localStorage.setItem(SESSION_KEY, JSON.stringify(usuario));
   localStorage.setItem(PERMISOS_KEY, JSON.stringify(permisos));
+  localStorage.setItem(MODULOS_KEY, JSON.stringify(modulosHabilitados ?? []));
   return usuario;
 }
 
 export async function refreshPermisos() {
-  const { permisos } = await api('/auth/me');
+  const { permisos, modulosHabilitados } = await api('/auth/me');
   localStorage.setItem(PERMISOS_KEY, JSON.stringify(permisos));
+  localStorage.setItem(MODULOS_KEY, JSON.stringify(modulosHabilitados ?? []));
   return permisos;
 }
 
@@ -68,4 +86,5 @@ export function logout() {
   setToken(null);
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(PERMISOS_KEY);
+  localStorage.removeItem(MODULOS_KEY);
 }

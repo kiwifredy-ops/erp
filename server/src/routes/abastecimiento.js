@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { prisma } from '../prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePermiso } from '../middleware/permisos.js';
+import { resolveTenant } from '../middleware/tenant.js';
 
 export const abastecimientoRouter = Router();
-abastecimientoRouter.use(requireAuth);
+abastecimientoRouter.use(requireAuth, resolveTenant);
 
 const V = requirePermiso('abastecimiento', 'ver');
 const C = requirePermiso('abastecimiento', 'crear');
@@ -35,14 +35,14 @@ function diasHasta(fecha) {
   return Math.round(ms / 86400000);
 }
 
-async function nextFolio() {
-  const count = await prisma.ordenCompra.count();
+async function nextFolio(prismaClient) {
+  const count = await prismaClient.ordenCompra.count();
   return `OC${String(count + 1).padStart(4, '0')}`;
 }
 
 abastecimientoRouter.get('/proveedores', V, async (req, res) => {
-  const proveedores = await prisma.proveedor.findMany({ orderBy: { nombre: 'asc' } });
-  const ordenes = await prisma.ordenCompra.findMany({ where: { calificacionProveedor: { not: null } } });
+  const proveedores = await req.prisma.proveedor.findMany({ orderBy: { nombre: 'asc' } });
+  const ordenes = await req.prisma.ordenCompra.findMany({ where: { calificacionProveedor: { not: null } } });
   const conCalificacion = proveedores.map((p) => {
     const propias = ordenes.filter((o) => o.proveedor === p.nombre);
     const promedio = propias.length ? propias.reduce((s, o) => s + o.calificacionProveedor, 0) / propias.length : null;
@@ -53,19 +53,19 @@ abastecimientoRouter.get('/proveedores', V, async (req, res) => {
 
 abastecimientoRouter.post('/proveedores', C, async (req, res) => {
   const { nombre, rubro, contacto, telefono } = req.body;
-  const proveedor = await prisma.proveedor.create({ data: { nombre, rubro, contacto, telefono } });
+  const proveedor = await req.prisma.proveedor.create({ data: { nombre, rubro, contacto, telefono } });
   res.status(201).json(proveedor);
 });
 
 abastecimientoRouter.post('/proveedores/:id/toggle', E, async (req, res) => {
-  const before = await prisma.proveedor.findUnique({ where: { id: req.params.id } });
+  const before = await req.prisma.proveedor.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Proveedor no encontrado' });
-  const proveedor = await prisma.proveedor.update({ where: { id: req.params.id }, data: { activo: !before.activo } });
+  const proveedor = await req.prisma.proveedor.update({ where: { id: req.params.id }, data: { activo: !before.activo } });
   res.json(proveedor);
 });
 
 abastecimientoRouter.get('/ordenes', V, async (req, res) => {
-  const ordenes = await prisma.ordenCompra.findMany({
+  const ordenes = await req.prisma.ordenCompra.findMany({
     select: ORDEN_SELECT_SIN_DOC,
     orderBy: { createdAt: 'desc' },
   });
@@ -73,7 +73,7 @@ abastecimientoRouter.get('/ordenes', V, async (req, res) => {
 });
 
 abastecimientoRouter.get('/ordenes/alertas', V, async (req, res) => {
-  const ordenes = await prisma.ordenCompra.findMany({ where: { estado: 'En tránsito' } });
+  const ordenes = await req.prisma.ordenCompra.findMany({ where: { estado: 'En tránsito' } });
   const atrasadas = ordenes
     .filter((o) => o.fechaEntregaEstimada)
     .map((o) => ({ ...o, diasRestantes: diasHasta(o.fechaEntregaEstimada) }))
@@ -86,8 +86,8 @@ abastecimientoRouter.post('/ordenes', C, async (req, res) => {
   const { proveedor, fecha, fechaEntregaEstimada, items } = req.body;
   if (!items?.length) return res.status(400).json({ error: 'La orden debe tener al menos un ítem' });
 
-  const folio = await nextFolio();
-  const orden = await prisma.ordenCompra.create({
+  const folio = await nextFolio(req.prisma);
+  const orden = await req.prisma.ordenCompra.create({
     data: {
       folio,
       proveedor,
@@ -103,7 +103,7 @@ abastecimientoRouter.post('/ordenes', C, async (req, res) => {
 
 abastecimientoRouter.post('/ordenes/:id/estado', E, async (req, res) => {
   const { estado, motivo, calificacion } = req.body;
-  const before = await prisma.ordenCompra.findUnique({ where: { id: req.params.id } });
+  const before = await req.prisma.ordenCompra.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Orden no encontrada' });
   if (!NEXT_ESTADO[before.estado]?.includes(estado)) {
     return res.status(400).json({ error: `Transición de estado inválida: ${before.estado} → ${estado}` });
@@ -112,7 +112,7 @@ abastecimientoRouter.post('/ordenes/:id/estado', E, async (req, res) => {
     return res.status(400).json({ error: 'Debes calificar al proveedor (1 a 5) al recibir la orden' });
   }
 
-  const orden = await prisma.ordenCompra.update({
+  const orden = await req.prisma.ordenCompra.update({
     where: { id: req.params.id },
     data: {
       estado,
@@ -128,7 +128,7 @@ abastecimientoRouter.post('/ordenes/:id/documento', E, async (req, res) => {
   const { nombreArchivo, mimeType, contenido } = req.body;
   if (!nombreArchivo || !mimeType || !contenido) return res.status(400).json({ error: 'Faltan datos del documento' });
 
-  const orden = await prisma.ordenCompra.update({
+  const orden = await req.prisma.ordenCompra.update({
     where: { id: req.params.id },
     data: {
       documentoNombre: nombreArchivo,
@@ -142,7 +142,7 @@ abastecimientoRouter.post('/ordenes/:id/documento', E, async (req, res) => {
 });
 
 abastecimientoRouter.get('/ordenes/:id/documento', V, async (req, res) => {
-  const orden = await prisma.ordenCompra.findUnique({ where: { id: req.params.id } });
+  const orden = await req.prisma.ordenCompra.findUnique({ where: { id: req.params.id } });
   if (!orden || !orden.documentoContenido) return res.status(404).json({ error: 'Documento no encontrado' });
   res.json({ contenido: orden.documentoContenido, nombreArchivo: orden.documentoNombre, mimeType: orden.documentoMimeType });
 });
