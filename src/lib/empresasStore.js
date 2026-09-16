@@ -18,6 +18,10 @@ export function getUsuariosEmpresa(id) {
   return apiPlataforma(`/empresas/${id}/usuarios`);
 }
 
+export function crearUsuarioEmpresa(id, data) {
+  return apiPlataforma(`/empresas/${id}/usuarios`, { method: 'POST', body: data });
+}
+
 export function bloquearEmpresa(id) {
   return apiPlataforma(`/empresas/${id}/bloquear`, { method: 'POST' });
 }

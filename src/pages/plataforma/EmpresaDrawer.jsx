@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { X, Users, LayoutGrid, ShieldAlert, ShieldOff, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import { X, Users, LayoutGrid, ShieldAlert, ShieldOff, ShieldCheck, Trash2, Upload, UserPlus } from 'lucide-react';
 import {
   getEmpresa,
   getUsuariosEmpresa,
   getModulosEmpresa,
   toggleModuloEmpresa,
   actualizarLogoEmpresa,
+  crearUsuarioEmpresa,
   fileToBase64,
   bloquearEmpresa,
   suspenderEmpresa,
@@ -23,6 +24,8 @@ export default function EmpresaDrawer({ empresa, onClose, onChanged }) {
   const [modulos, setModulos] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState('');
+  const [showCrearUsuario, setShowCrearUsuario] = useState(false);
+  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '' });
 
   async function refresh() {
     const [d, u, m] = await Promise.all([getEmpresa(empresa.id), getUsuariosEmpresa(empresa.id), getModulosEmpresa(empresa.id)]);
@@ -64,6 +67,23 @@ export default function EmpresaDrawer({ empresa, onClose, onChanged }) {
       onClose();
     } catch (err) {
       setError(err.message || 'No se pudo completar la acción.');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function handleCrearUsuario(e) {
+    e.preventDefault();
+    setError('');
+    setSaving('usuario');
+    try {
+      await crearUsuarioEmpresa(empresa.id, nuevoUsuario);
+      setNuevoUsuario({ nombre: '', email: '', password: '' });
+      setShowCrearUsuario(false);
+      await refresh();
+      onChanged();
+    } catch (err) {
+      setError(err.message || 'No se pudo crear el usuario.');
     } finally {
       setSaving('');
     }
@@ -177,9 +197,56 @@ export default function EmpresaDrawer({ empresa, onClose, onChanged }) {
           )}
 
           <div>
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
-              <Users className="w-3.5 h-3.5" /> Usuarios de esta empresa
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                <Users className="w-3.5 h-3.5" /> Usuarios de esta empresa
+              </p>
+              {!esEliminada && (
+                <button
+                  onClick={() => setShowCrearUsuario((v) => !v)}
+                  className="flex items-center gap-1 text-xs font-medium text-sky-700 hover:underline"
+                >
+                  <UserPlus className="w-3.5 h-3.5" /> Crear usuario
+                </button>
+              )}
+            </div>
+
+            {showCrearUsuario && (
+              <form onSubmit={handleCrearUsuario} className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 mb-3">
+                <input
+                  required
+                  placeholder="Nombre completo"
+                  value={nuevoUsuario.nombre}
+                  onChange={(e) => setNuevoUsuario((u) => ({ ...u, nombre: e.target.value }))}
+                  className="input"
+                />
+                <input
+                  required
+                  type="email"
+                  placeholder="Correo electrónico"
+                  value={nuevoUsuario.email}
+                  onChange={(e) => setNuevoUsuario((u) => ({ ...u, email: e.target.value }))}
+                  className="input"
+                />
+                <input
+                  required
+                  type="password"
+                  minLength={6}
+                  placeholder="Contraseña inicial"
+                  value={nuevoUsuario.password}
+                  onChange={(e) => setNuevoUsuario((u) => ({ ...u, password: e.target.value }))}
+                  className="input"
+                />
+                <p className="text-[11px] text-slate-500">Se crea con rol "Administrador del Sistema" (acceso completo).</p>
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setShowCrearUsuario(false)} className="px-3 py-1.5 text-xs rounded-md text-slate-600 hover:bg-slate-100">Cancelar</button>
+                  <button type="submit" disabled={saving === 'usuario'} className="px-3 py-1.5 text-xs rounded-md bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium">
+                    {saving === 'usuario' ? 'Creando...' : 'Crear'}
+                  </button>
+                </div>
+              </form>
+            )}
+
             <ul className="space-y-1.5">
               {usuarios.map((u) => (
                 <li key={u.id} className="bg-slate-50 rounded-md px-3 py-2 text-sm flex items-center justify-between">

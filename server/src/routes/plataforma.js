@@ -97,6 +97,38 @@ plataformaRouter.get('/empresas/:id/usuarios', async (req, res) => {
   res.json(usuarios);
 });
 
+// Alta manual de un usuario para una empresa ya existente — pensado para
+// recuperar acceso a una empresa sin usuarios (ej. si el alta inicial
+// falló a mitad de camino) sin tener que recrearla desde cero.
+plataformaRouter.post('/empresas/:id/usuarios', async (req, res) => {
+  const { nombre, email, password, rol } = req.body;
+  if (!nombre || !email || !password) return res.status(400).json({ error: 'Nombre, correo y contraseña son requeridos' });
+  if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+
+  const empresa = await prismaPlataforma.empresa.findUnique({ where: { id: req.params.id } });
+  if (!empresa) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+  const emailNormalizado = email.toLowerCase();
+  const yaIndexado = await prismaPlataforma.usuarioIndex.findUnique({ where: { email: emailNormalizado } });
+  if (yaIndexado) return res.status(400).json({ error: 'Ya existe un usuario con ese correo en la plataforma' });
+
+  const tenantPrisma = getTenantPrisma(empresa.dbName);
+  const hash = await bcrypt.hash(password, 10);
+  const usuario = await tenantPrisma.usuario.create({
+    data: { nombre, email: emailNormalizado, rol: rol || 'Administrador del Sistema', password: hash },
+    select: { id: true, nombre: true, email: true, rol: true, activo: true, createdAt: true },
+  });
+
+  try {
+    await prismaPlataforma.usuarioIndex.create({ data: { email: emailNormalizado, empresaId: empresa.id } });
+  } catch (err) {
+    await tenantPrisma.usuario.delete({ where: { id: usuario.id } });
+    throw err;
+  }
+
+  res.status(201).json(usuario);
+});
+
 async function cambiarEstado(req, res, nuevoEstado) {
   const empresa = await prismaPlataforma.empresa.findUnique({ where: { id: req.params.id } });
   if (!empresa) return res.status(404).json({ error: 'Empresa no encontrada' });
