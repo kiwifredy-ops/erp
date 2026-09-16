@@ -660,3 +660,69 @@ model RolPermiso {
 
   @@unique([rol, moduloId])
 }
+
+// --- Prevención de Riesgos --------------------------------------------------
+//
+// El vínculo a un trabajador es por nombre (String), no FK — mismo enfoque
+// que Rendicion.tecnico y Marcacion.empleado, para no acoplar este módulo a
+// que el trabajador siga existiendo en RRHH con el mismo id.
+
+// Documentos legales a nivel empresa: Reglamento Interno de Higiene y
+// Seguridad, Matriz IPER, Programa de Prevención anual, Certificado de la
+// Mutualidad, Acta del Comité Paritario, etc.
+model DocumentoPrevencion {
+  id               String    @id @default(cuid())
+  tipo             String
+  nombre           String
+  nombreArchivo    String
+  mimeType         String
+  contenido        String    @db.LongText
+  fechaEmision     DateTime
+  fechaVencimiento DateTime?
+  notas            String?   @db.Text
+  createdAt        DateTime  @default(now())
+}
+
+// Documentos de seguridad por trabajador: Obligación de Informar (ODI),
+// entrega de EPP, exámenes ocupacionales, capacitaciones.
+model DocumentoSeguridadEmpleado {
+  id               String    @id @default(cuid())
+  empleado         String
+  tipo             String
+  nombreArchivo    String
+  mimeType         String
+  contenido        String    @db.LongText
+  fecha            DateTime
+  fechaVencimiento DateTime?
+  notas            String?   @db.Text
+  createdAt        DateTime  @default(now())
+}
+
+model AccidenteIncidente {
+  id               String   @id @default(cuid())
+  folio            String   @unique
+  empleado         String?
+  fecha            DateTime
+  tipo             String // Accidente del Trabajo | Accidente de Trayecto | Incidente sin lesión | Enfermedad Profesional
+  gravedad         String // Leve | Grave | Fatal
+  lugar            String?
+  descripcion      String   @db.Text
+  estado           String   @default("En investigación") // En investigación | Cerrado
+  informeNombre    String?
+  informeMimeType  String?
+  informeContenido String?  @db.LongText
+  createdAt        DateTime @default(now())
+
+  bitacora AccidenteBitacora[]
+}
+
+model AccidenteBitacora {
+  id          String             @id @default(cuid())
+  accidenteId String
+  accidente   AccidenteIncidente @relation(fields: [accidenteId], references: [id], onDelete: Cascade)
+  fecha       DateTime
+  evento      String
+  detalle     String?            @db.Text
+
+  @@index([accidenteId])
+}

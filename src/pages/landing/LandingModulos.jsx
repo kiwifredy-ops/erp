@@ -49,7 +49,7 @@ export default function LandingModulos() {
 
   return (
     <section id="modulos" className="max-w-6xl mx-auto px-5 sm:px-6 py-20 border-t border-white/10">
-      <h2 className="text-2xl sm:text-3xl font-semibold text-white">Los 11 módulos del sistema</h2>
+      <h2 className="text-2xl sm:text-3xl font-semibold text-white">Los 12 módulos del sistema</h2>
       <p className="mt-2 text-white/60 max-w-2xl">
         Cada plan habilita un subconjunto de estos módulos — haz clic en uno para ver su funcionalidad en detalle.
       </p>

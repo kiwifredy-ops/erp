@@ -16,6 +16,7 @@ import TicketsModule from './pages/modules/tickets/TicketsModule';
 import ClientesModule from './pages/modules/clientes/ClientesModule';
 import UsuariosModule from './pages/modules/usuarios/UsuariosModule';
 import MantenimientoModule from './pages/modules/mantenimiento/MantenimientoModule';
+import PrevencionModule from './pages/modules/prevencion/PrevencionModule';
 import PlataformaLogin from './pages/plataforma/PlataformaLogin';
 import PlataformaLayout from './pages/plataforma/PlataformaLayout';
 import EmpresasDashboard from './pages/plataforma/EmpresasDashboard';
@@ -35,6 +36,7 @@ const MODULE_COMPONENTS = {
   clientes: ClientesModule,
   usuarios: UsuariosModule,
   mantenimiento: MantenimientoModule,
+  prevencion: PrevencionModule,
 };
 
 function AccesoDenegado() {

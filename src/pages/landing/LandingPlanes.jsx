@@ -3,7 +3,7 @@ import { Check } from 'lucide-react';
 import { getModule } from '../../lib/modules';
 
 // Mismo orden y contenido validados en la tabla de precios (pricing-plans.html).
-const ORDEN_MODULOS = ['rrhh', 'asistencia', 'usuarios', 'gastos', 'flota', 'abastecimiento', 'clientes', 'almacen', 'contabilidad', 'tickets', 'mantenimiento'];
+const ORDEN_MODULOS = ['rrhh', 'asistencia', 'usuarios', 'gastos', 'flota', 'abastecimiento', 'clientes', 'prevencion', 'almacen', 'contabilidad', 'tickets', 'mantenimiento'];
 
 const PLANES = [
   {
@@ -22,7 +22,7 @@ const PLANES = [
     monthly: 69900,
     annual: 58300,
     seats: 'Hasta 15 usuarios incluidos · $2.500 c/u adicional',
-    modulos: ['rrhh', 'asistencia', 'usuarios', 'gastos', 'flota', 'abastecimiento', 'clientes'],
+    modulos: ['rrhh', 'asistencia', 'usuarios', 'gastos', 'flota', 'abastecimiento', 'clientes', 'prevencion'],
     featured: true,
   },
   {

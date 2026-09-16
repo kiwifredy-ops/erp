@@ -13,6 +13,7 @@ import { ticketsRouter } from './routes/tickets.js';
 import { clientesRouter } from './routes/clientes.js';
 import { usuariosRouter } from './routes/usuarios.js';
 import { mantenimientoRouter } from './routes/mantenimiento.js';
+import { prevencionRouter } from './routes/prevencion.js';
 import { plataformaRouter } from './routes/plataforma.js';
 
 const app = express();
@@ -36,6 +37,7 @@ app.use('/api/tickets', ticketsRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/mantenimiento', mantenimientoRouter);
+app.use('/api/prevencion', prevencionRouter);
 app.use('/api/plataforma', plataformaRouter);
 
 app.use((err, req, res, next) => {

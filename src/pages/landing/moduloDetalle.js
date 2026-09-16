@@ -101,4 +101,13 @@ export const MODULO_DETALLE = {
       'Activación o desactivación de accesos sin perder el historial del usuario.',
     ],
   },
+  prevencion: {
+    resumen: 'La documentación legal de higiene y seguridad, en un solo lugar y sin vencimientos sorpresa.',
+    funciones: [
+      'Documentos legales de la empresa: Reglamento Interno de Higiene y Seguridad, Matriz de Identificación de Peligros (IPER), Programa de Prevención anual, certificado de la Mutualidad, Acta del Comité Paritario.',
+      'Documentos por trabajador: Obligación de Informar (ODI), entrega de EPP, exámenes ocupacionales y capacitaciones.',
+      'Alertas automáticas de documentos por vencer, de la empresa o del personal.',
+      'Registro de accidentes e incidentes con estado de investigación y el informe adjunto.',
+    ],
+  },
 };

@@ -30,7 +30,7 @@ export default function LandingHero() {
         </button>
       </div>
       <div className="mt-10 flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/50">
-        <span><strong className="text-white/80 font-semibold">11</strong> módulos disponibles</span>
+        <span><strong className="text-white/80 font-semibold">12</strong> módulos disponibles</span>
         <span><strong className="text-white/80 font-semibold">Base de datos propia</strong> por empresa</span>
         <span><strong className="text-white/80 font-semibold">Sin</strong> permanencia mínima</span>
       </div>

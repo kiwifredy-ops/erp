@@ -22,7 +22,7 @@ export const AUTOSERVICIO_GASTOS = { puedeVer: false, puedeCrear: true, puedeEdi
 // reprogramar o cerrar/cancelar.
 export const AUTOSERVICIO_ASIGNADO = { puedeVer: false, puedeCrear: false, puedeEditar: true, puedeEliminar: false };
 
-export const TODOS_LOS_MODULOS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes', 'usuarios', 'mantenimiento'];
+export const TODOS_LOS_MODULOS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'flota', 'abastecimiento', 'contabilidad', 'tickets', 'clientes', 'usuarios', 'mantenimiento', 'prevencion'];
 
 // El administrador de cada empresa puede reconfigurar todo esto libremente
 // después desde el módulo de Usuarios. Todos los roles pueden marcar su
@@ -31,9 +31,9 @@ export const TODOS_LOS_MODULOS = ['rrhh', 'almacen', 'gastos', 'asistencia', 'fl
 export const PERMISOS_POR_ROL = {
   'Administrador del Sistema': Object.fromEntries(TODOS_LOS_MODULOS.map((m) => [m, TODO])),
   'Gerencia General': { ...Object.fromEntries(TODOS_LOS_MODULOS.map((m) => [m, SOLO_VER])), asistencia: AUTOSERVICIO_PROPIO },
-  RRHH: { rrhh: TODO, asistencia: AUTOSERVICIO },
+  RRHH: { rrhh: TODO, asistencia: AUTOSERVICIO, prevencion: TODO },
   'Jefe de Almacén': { almacen: TODO, abastecimiento: TODO, asistencia: AUTOSERVICIO_PROPIO },
-  'Supervisor de Operaciones': { tickets: TODO, flota: TODO, mantenimiento: TODO, clientes: VER_EDITAR, rrhh: SOLO_VER, asistencia: AUTOSERVICIO_PROPIO },
+  'Supervisor de Operaciones': { tickets: TODO, flota: TODO, mantenimiento: TODO, clientes: VER_EDITAR, rrhh: SOLO_VER, prevencion: SOLO_VER, asistencia: AUTOSERVICIO_PROPIO },
   'Técnico de Campo': { tickets: AUTOSERVICIO_ASIGNADO, gastos: AUTOSERVICIO_GASTOS, flota: AUTOSERVICIO_ASIGNADO, mantenimiento: AUTOSERVICIO_ASIGNADO, asistencia: AUTOSERVICIO_PROPIO },
   Finanzas: { contabilidad: TODO, gastos: SOLO_VER, abastecimiento: SOLO_VER, clientes: SOLO_VER, asistencia: AUTOSERVICIO_PROPIO },
 };
